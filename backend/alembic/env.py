@@ -14,7 +14,7 @@ load_dotenv()
 config_db_url = os.getenv("DATABASE_URL")
 
 from database import Base
-from models import User, ScamAnalysis
+from models import User, ScamAnalysis, District, UrlScan, CommunityReport, JobScamCheck
 
 # this is the Alembic Config object, which provides
 # access to the values within the .ini file in use.
