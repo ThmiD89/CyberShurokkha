@@ -5,18 +5,25 @@ import React, { createContext, useContext, useState, useEffect, ReactNode } from
 type ThemeContextType = {
   theme: string;
   setTheme: (theme: string) => void;
+  showMoodOverlay: boolean;
+  openMoodSelector: () => void;
+  selectMood: (theme: string) => void;
 };
 
 const ThemeContext = createContext<ThemeContextType | undefined>(undefined);
 
 export function ThemeProvider({ children }: { children: ReactNode }) {
   const [theme, setTheme] = useState<string>("default");
+  const [showMoodOverlay, setShowMoodOverlay] = useState(false);
 
   useEffect(() => {
     const saved = localStorage.getItem("lumen_mood_preference");
     if (saved) {
       setTheme(saved);
       document.documentElement.setAttribute("data-theme", saved);
+      setShowMoodOverlay(false);
+    } else {
+      setShowMoodOverlay(true);
     }
   }, []);
 
@@ -25,8 +32,15 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
     localStorage.setItem("lumen_mood_preference", theme);
   }, [theme]);
 
+  const openMoodSelector = () => setShowMoodOverlay(true);
+
+  const selectMood = (newTheme: string) => {
+    setTheme(newTheme);
+    setShowMoodOverlay(false);
+  };
+
   return (
-    <ThemeContext.Provider value={{ theme, setTheme }}>
+    <ThemeContext.Provider value={{ theme, setTheme, showMoodOverlay, openMoodSelector, selectMood }}>
       {children}
     </ThemeContext.Provider>
   );
