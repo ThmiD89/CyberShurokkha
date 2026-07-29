@@ -1,0 +1,57 @@
+/* mood-happy.css - Happy Theme */
+/* Background: Golden Yellow Gradient */
+/* Box Color: Warm Orange */
+
+:root {
+    --bg-primary: linear-gradient(135deg, #FFE259 0%, #FFA751 100%);
+    --bg-secondary: #FFB347;
+    --bg-nav: rgba(255, 193, 7, 0.92);
+    
+    --text-primary: #3E2723;
+    --text-secondary: #5D4037;
+    --text-light: #FFF8E1;
+    --text-dark: #2D1A11;
+    
+    --btn-primary: #FF9800;
+    --btn-primary-hover: #F57C00;
+    --btn-secondary: #FFCC80;
+    --btn-secondary-hover: #FFB74D;
+    --accent: #FF5722;
+    --accent-hover: #E64A19;
+    --border-color: #FFB74D;
+    
+    /* Box Color - Warm Orange (NOT WHITE) */
+    --card-bg: #FFE0B2;
+    --card-border: #FF9800;
+    --card-shadow: 0 10px 30px rgba(255, 152, 0, 0.2);
+    --feature-card-bg: #FFE0B2;
+    --pricing-card-bg: #FFE0B2;
+    --step-card-bg: #FFE0B2;
+    
+    --card-shadow-hover: 0 15px 40px rgba(255, 152, 0, 0.3);
+}
+
+body {
+    background: var(--bg-primary);
+    min-height: 100vh;
+}
+
+.feature-card, .pricing-card, .step {
+    background: var(--feature-card-bg);
+    border: 1px solid var(--card-border);
+    border-radius: 1rem;
+    padding: 1.5rem;
+    transition: all 0.3s ease;
+    box-shadow: var(--card-shadow);
+}
+
+.feature-card:hover, .pricing-card:hover, .step:hover {
+    transform: translateY(-5px);
+    box-shadow: var(--card-shadow-hover);
+    background: #FFECB3;
+}
+
+.pricing-card.popular {
+    border: 2px solid var(--accent);
+    background: #FFECB3;
+}

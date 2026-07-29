@@ -1,0 +1,550 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>QR Phishing Scanner - LUMEN</title>
+    
+    <!-- Base CSS - CORRECTED PATHS -->
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/mood-base.css') }}">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/mood-default.css') }}" id="fallbackMoodCSS">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/qr-scanner.css') }}">
+    
+    <!-- Google Fonts -->
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+    
+    <!-- Font Awesome -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    
+    <!-- jsQR for camera scanning -->
+    <script src="https://cdn.jsdelivr.net/npm/jsqr@1.4.0/dist/jsQR.js"></script>
+</head>
+<body>
+    <!-- Mood Selector Overlay -->
+<div id="moodOverlay" class="mood-overlay" style="display:none;">
+    <div class="mood-container">
+        <div class="mood-header">
+            <div class="lumen-icon">
+                <span class="shield-icon">🛡️</span>
+            </div>
+            <h1 class="mood-title">LUMEN</h1>
+            <p class="mood-subtitle">Choose your theme</p>
+            <p class="mood-question">How are you feeling today?</p>
+        </div>
+        
+        <div class="mood-grid">
+            <button class="mood-btn" data-mood="default"><span class="mood-emoji">🪻</span><span class="mood-name">Default</span><span class="mood-desc">Soft Lavender</span></button>
+            <button class="mood-btn" data-mood="happy"><span class="mood-emoji">😊</span><span class="mood-name">Happy</span><span class="mood-desc">Bright & Energetic</span></button>
+            <button class="mood-btn" data-mood="calm"><span class="mood-emoji">🌊</span><span class="mood-name">Calm</span><span class="mood-desc">Peaceful & Relaxed</span></button>
+            <button class="mood-btn" data-mood="dark"><span class="mood-emoji">🌙</span><span class="mood-name">Dark</span><span class="mood-desc">Sleek & Mysterious</span></button>
+            <button class="mood-btn" data-mood="energetic"><span class="mood-emoji">⚡</span><span class="mood-name">Energetic</span><span class="mood-desc">Vibrant & Dynamic</span></button>
+            <button class="mood-btn" data-mood="white"><span class="mood-emoji">🤍</span><span class="mood-name">White</span><span class="mood-desc">Clean & Minimal</span></button>
+            <button class="mood-btn" data-mood="professional"><span class="mood-emoji">💼</span><span class="mood-name">Professional</span><span class="mood-desc">Corporate & Formal</span></button>
+            <button class="mood-btn" data-mood="sad"><span class="mood-emoji">😔</span><span class="mood-name">Sad</span><span class="mood-desc">Mellow & Deep</span></button>
+        </div>
+        
+        <div class="mood-footer">
+            <p class="mood-note">✨ Your mood preference will be saved ✨</p>
+        </div>
+    </div>
+</div>
+    <!-- ============================================
+    NAVIGATION
+    ============================================ -->
+    <nav class="navbar">
+        <div class="nav-container">
+            <div class="nav-logo" onclick="window.location.href='/'">
+                <span class="logo-icon">🛡️</span>
+                <span class="logo-text">LUMEN</span>
+            </div>
+            <div class="nav-links">
+                <a href="/" class="nav-link active">QR Scanner</a>
+                <a href="#" class="nav-link" onclick="showMessage('Coming soon! Integration in progress...', 'warning')">Dashboard</a>
+                <a href="#" class="nav-link" onclick="showMessage('Coming soon! Integration in progress...', 'warning')">History</a>
+            </div>
+            <div class="nav-actions">
+                <button id="changeMoodBtn" class="mood-changer-btn" title="Change Theme">
+                    <i class="fas fa-palette"></i> Theme
+                </button>
+            </div>
+        </div>
+    </nav>
+
+    <!-- ============================================
+    MAIN CONTENT
+    ============================================ -->
+    <div class="scanner-container">
+        <!-- Header -->
+        <div class="scanner-header">
+            <h1 class="scanner-title">
+                <i class="fas fa-qrcode"></i> QR Code &amp; Phishing URL Scanner
+            </h1>
+            <p class="scanner-subtitle">Scan suspicious URLs from text, QR code images, or your camera</p>
+        </div>
+
+        <!-- Tab Navigation -->
+        <div class="tab-container">
+            <button class="tab-btn active" data-tab="url" onclick="switchTab('url')">
+                <i class="fas fa-link"></i> URL Scanner
+            </button>
+            <button class="tab-btn" data-tab="upload" onclick="switchTab('upload')">
+                <i class="fas fa-upload"></i> Upload QR
+            </button>
+            <button class="tab-btn" data-tab="camera" onclick="switchTab('camera')">
+                <i class="fas fa-camera"></i> Camera
+            </button>
+        </div>
+
+        <!-- ============================================
+        TAB 1: URL SCANNER
+        ============================================ -->
+        <div id="urlTab" class="tab-content active">
+            <div class="scanner-card">
+                <div class="card-header">
+                    <i class="fas fa-link"></i>
+                    <h3>Scan a URL Directly</h3>
+                </div>
+                <div class="card-body">
+                    <form method="POST" action="/scan_url" id="urlForm">
+                        <div class="url-input-group">
+                            <input type="text" name="manual_url" id="manualUrlInput" class="form-input" 
+                                   placeholder="e.g., example.com or https://example.com/page" 
+                                   value="{{ result.url if result and result.url else '' }}" required>
+                            <button type="submit" class="scan-btn">
+                                <i class="fas fa-search"></i> Scan URL
+                            </button>
+                        </div>
+                    </form>
+                    <div class="url-quick-examples">
+                        <span class="quick-label">Try:</span>
+                        <button class="quick-btn" onclick="setExampleUrl('google.com')">google.com</button>
+                        <button class="quick-btn" onclick="setExampleUrl('paypal-secure-login.verify-account.tk')">⚠️ Suspicious</button>
+                        <button class="quick-btn" onclick="setExampleUrl('br-icloud.com.br')">⚠️ Phishing</button>
+                        <button class="quick-btn" onclick="setExampleUrl('http://www.garage-pirenne.be/index.php?option=com')">⚠️ Defacement</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- ============================================
+        TAB 2: UPLOAD QR
+        ============================================ -->
+        <div id="uploadTab" class="tab-content">
+            <div class="scanner-card">
+                <div class="card-header">
+                    <i class="fas fa-upload"></i>
+                    <h3>Upload QR Code Image</h3>
+                </div>
+                <div class="card-body">
+                    <form method="POST" enctype="multipart/form-data" id="uploadForm">
+                        <div id="dropZone" class="drop-zone" onclick="document.getElementById('fileInput').click()">
+                            <i class="fas fa-cloud-upload-alt drop-icon"></i>
+                            <p class="drop-text">Drag &amp; Drop your QR code image here</p>
+                            <p class="drop-hint">or click to browse</p>
+                            <input type="file" name="qr_image" id="fileInput" accept="image/*" required hidden>
+                            <div class="file-types">
+                                <span><i class="fas fa-check-circle"></i> PNG</span>
+                                <span><i class="fas fa-check-circle"></i> JPG</span>
+                                <span><i class="fas fa-check-circle"></i> GIF</span>
+                                <span><i class="fas fa-check-circle"></i> WEBP</span>
+                                <span><i class="fas fa-check-circle"></i> BMP</span>
+                            </div>
+                        </div>
+
+                        <!-- File Info -->
+                        <div id="fileInfo" class="file-info hidden">
+                            <div class="file-icon">
+                                <i class="fas fa-file-image"></i>
+                            </div>
+                            <div class="file-details">
+                                <p id="uploadFileName" class="file-name"></p>
+                                <p id="uploadFileSize" class="file-size"></p>
+                            </div>
+                            <button type="button" onclick="clearFile()" class="remove-file">
+                                <i class="fas fa-times"></i>
+                            </button>
+                        </div>
+
+                        <button type="submit" id="scanUploadBtn" class="scan-btn" style="width:100%; margin-top:1rem; justify-content:center;" disabled>
+                            <i class="fas fa-qrcode"></i> Scan QR Code
+                        </button>
+                    </form>
+                </div>
+            </div>
+        </div>
+
+        <!-- ============================================
+        <!-- ============================================
+TAB 3: CAMERA
+============================================ -->
+<div id="cameraTab" class="tab-content">
+    <div class="scanner-card">
+        <div class="card-header">
+            <i class="fas fa-camera"></i>
+            <h3>Scan with Camera</h3>
+        </div>
+        <div class="card-body">
+            <div class="camera-container">
+                <video id="video" autoplay playsinline></video>
+                <div class="camera-overlay"></div>
+            </div>
+            <canvas id="canvas" hidden></canvas>
+            
+            <div class="camera-controls">
+                <button id="startCameraBtn" class="camera-btn start" onclick="startCamera()">
+                    <i class="fas fa-play"></i> Start Camera
+                </button>
+                <button id="stopCameraBtn" class="camera-btn stop" onclick="stopCamera()" style="display:none;">
+                    <i class="fas fa-stop"></i> Stop Camera
+                </button>
+            </div>
+            <div id="cameraStatus" class="camera-status">
+                <i class="fas fa-info-circle"></i> Click "Start Camera" to begin scanning
+            </div>
+            <div id="cameraResult" class="camera-result"></div>
+        </div>
+    </div>
+</div>
+
+        <!-- ============================================
+        LOADING SPINNER
+        ============================================ -->
+        <div id="loadingSpinner" class="loading-spinner">
+            <div class="spinner"></div>
+            <p>Scanning...</p>
+        </div>
+
+        <!-- ============================================
+        RESULTS DISPLAY (from server)
+        ============================================ -->
+        {% if result %}
+        <div id="resultsPanel" class="results-panel show">
+            <div id="resultContent">
+                <div class="result-card">
+                    <div class="result-header">
+                        <h3><i class="fas fa-search"></i> Scan Result</h3>
+                        {% if result.error %}
+                            <span class="result-badge unsafe">⚠️ Error</span>
+                        {% else %}
+                            <span class="result-badge {{ 'safe' if result.verdict == 'SAFE' else 'unsafe' }}">
+                                {{ '✅' if result.verdict == 'SAFE' else '⚠️' }} {{ result.verdict }}
+                            </span>
+                        {% endif %}
+                    </div>
+                    <div class="result-body">
+                        {% if result.error %}
+                            <div class="error-message">
+                                <i class="fas fa-exclamation-circle"></i> {{ result.error }}
+                            </div>
+                        {% else %}
+                            <div class="result-url">
+                                <span>{{ result.url }}</span>
+                                <button class="copy-url-btn" onclick="copyToClipboard('{{ result.url }}')" title="Copy URL">
+                                    <i class="fas fa-copy"></i> Copy
+                                </button>
+                            </div>
+
+                            {% if result.decoded_from_qr %}
+                            <div style="background: var(--bg-secondary); border-radius: 0.5rem; padding: 0.5rem 1rem; margin-bottom: 1rem; font-size: 0.85rem; color: var(--text-secondary);">
+                                <i class="fas fa-qrcode"></i> Decoded from QR: <strong style="color: var(--text-primary);">{{ result.url }}</strong>
+                            </div>
+                            {% endif %}
+
+                            <div class="result-confidence">
+                                <div class="confidence-label">
+                                    <span>Confidence</span>
+                                    <span>{{ result.confidence|round(1) }}%</span>
+                                </div>
+                                <div class="confidence-bar">
+                                    {% set conf = result.confidence|float %}
+                                    <div class="confidence-fill {{ 'high' if conf >= 70 else 'medium' if conf >= 40 else 'low' }}" 
+                                         style="width: {{ conf }}%"></div>
+                                </div>
+                            </div>
+
+                            {% if result.features_used %}
+                            <details style="margin-top: 1rem;">
+                                <summary style="cursor: pointer; color: var(--accent); font-weight: 500;">
+                                    <i class="fas fa-chart-bar"></i> Show Feature Details
+                                </summary>
+                                <pre style="background: var(--bg-secondary); padding: 1rem; border-radius: 0.5rem; margin-top: 0.5rem; overflow-x: auto; font-size: 0.75rem; color: var(--text-primary);">{{ result.features_used }}</pre>
+                            </details>
+                            {% endif %}
+
+                            <div style="margin-top: 1rem; display: flex; gap: 0.5rem; flex-wrap: wrap;">
+                                <button onclick="copyToClipboard('{{ result.url }}')" class="scan-btn" style="padding: 0.5rem 1rem; font-size: 0.85rem;">
+                                    <i class="fas fa-copy"></i> Copy URL
+                                </button>
+                                {% if result.url.startswith('http') %}
+                                <button onclick="window.open('{{ result.url }}', '_blank')" class="scan-btn" style="padding: 0.5rem 1rem; font-size: 0.85rem; background: var(--btn-secondary); color: var(--text-primary);">
+                                    <i class="fas fa-external-link-alt"></i> Open URL
+                                </button>
+                                {% endif %}
+                            </div>
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
+        </div>
+        {% endif %}
+    </div>
+
+    <!-- ============================================
+    JAVASCRIPT - CORRECTED PATHS
+    ============================================ -->
+    <script src="{{ url_for('static', filename='js/mood-storage.js') }}"></script>
+    <script src="{{ url_for('static', filename='js/mood-selector.js') }}"></script>
+    <script src="{{ url_for('static', filename='js/qr-scanner.js') }}"></script>
+
+    <script>
+        // ============================================
+        // SET EXAMPLE URL
+        // ============================================
+        function setExampleUrl(url) {
+            const input = document.getElementById('manualUrlInput');
+            if (input) {
+                input.value = url;
+                document.getElementById('urlForm').submit();
+            }
+        }
+
+        // ============================================
+        // COPY TO CLIPBOARD
+        // ============================================
+        function copyToClipboard(text) {
+            navigator.clipboard.writeText(text).then(() => {
+                showMessage('URL copied to clipboard!', 'success');
+            }).catch(() => {
+                const textarea = document.createElement('textarea');
+                textarea.value = text;
+                document.body.appendChild(textarea);
+                textarea.select();
+                document.execCommand('copy');
+                document.body.removeChild(textarea);
+                showMessage('URL copied to clipboard!', 'success');
+            });
+        }
+
+        // ============================================
+        // SHOW MESSAGE
+        // ============================================
+        function showMessage(message, type) {
+            const existingMsg = document.querySelector('.success-message, .error-message, .warning-message');
+            if (existingMsg) existingMsg.remove();
+
+            const msgDiv = document.createElement('div');
+            msgDiv.className = `${type}-message`;
+            const icons = {
+                success: 'fa-check-circle',
+                error: 'fa-exclamation-circle',
+                warning: 'fa-exclamation-triangle'
+            };
+            msgDiv.innerHTML = `<i class="fas ${icons[type] || 'fa-info-circle'}"></i> ${message}`;
+
+            const container = document.querySelector('.scanner-container');
+            container.insertBefore(msgDiv, container.firstChild);
+
+            setTimeout(() => {
+                if (msgDiv) msgDiv.remove();
+            }, 5000);
+        }
+
+        // ============================================
+        // FILE UPLOAD HANDLING
+        // ============================================
+        const fileInput = document.getElementById('fileInput');
+        const fileInfo = document.getElementById('fileInfo');
+        const uploadFileName = document.getElementById('uploadFileName');
+        const uploadFileSize = document.getElementById('uploadFileSize');
+        const scanUploadBtn = document.getElementById('scanUploadBtn');
+
+        if (fileInput) {
+            fileInput.addEventListener('change', function(e) {
+                const file = this.files[0];
+                if (file) {
+                    fileInfo.classList.remove('hidden');
+                    uploadFileName.textContent = file.name;
+                    uploadFileSize.textContent = (file.size / 1024).toFixed(2) + ' KB';
+                    scanUploadBtn.disabled = false;
+                    scanUploadBtn.style.opacity = '1';
+                    scanUploadBtn.style.cursor = 'pointer';
+                }
+            });
+        }
+
+        function clearFile() {
+            fileInfo.classList.add('hidden');
+            fileInput.value = '';
+            scanUploadBtn.disabled = true;
+            scanUploadBtn.style.opacity = '0.5';
+            scanUploadBtn.style.cursor = 'not-allowed';
+        }
+
+        // ============================================
+        // DRAG AND DROP
+        // ============================================
+        const dropZone = document.getElementById('dropZone');
+        if (dropZone) {
+            dropZone.addEventListener('dragover', function(e) {
+                e.preventDefault();
+                this.classList.add('drag-over');
+            });
+
+            dropZone.addEventListener('dragleave', function(e) {
+                e.preventDefault();
+                this.classList.remove('drag-over');
+            });
+
+            dropZone.addEventListener('drop', function(e) {
+                e.preventDefault();
+                this.classList.remove('drag-over');
+                const file = e.dataTransfer.files[0];
+                if (file) {
+                    const input = document.getElementById('fileInput');
+                    const dt = new DataTransfer();
+                    dt.items.add(file);
+                    input.files = dt.files;
+                    input.dispatchEvent(new Event('change'));
+                }
+            });
+        }
+
+        // ============================================
+        // TAB SWITCHING
+        // ============================================
+        function switchTab(tabName) {
+            document.querySelectorAll('.tab-btn').forEach(btn => {
+                btn.classList.remove('active');
+            });
+            document.querySelector(`[data-tab="${tabName}"]`).classList.add('active');
+
+            document.querySelectorAll('.tab-content').forEach(content => {
+                content.classList.remove('active');
+            });
+            document.getElementById(`${tabName}Tab`).classList.add('active');
+        }
+
+        // ============================================
+        // CAMERA SCANNER
+        // ============================================
+        const video = document.getElementById('video');
+        const canvas = document.getElementById('canvas');
+        const ctx = canvas.getContext('2d', { willReadFrequently: true });
+        const startBtn = document.getElementById('startCamera');
+        const stopBtn = document.getElementById('stopCamera');
+        const resultDiv = document.getElementById('cameraResult');
+        const statusDiv = document.getElementById('cameraStatus');
+        let stream = null;
+        let scanning = false;
+        let lastScanned = null;
+
+        startBtn.onclick = async () => {
+            try {
+                stream = await navigator.mediaDevices.getUserMedia({ 
+                    video: { facingMode: 'environment' } 
+                });
+                video.srcObject = stream;
+                await video.play();
+                startBtn.style.display = 'none';
+                stopBtn.style.display = 'inline-flex';
+                scanning = true;
+                resultDiv.innerHTML = '';
+                statusDiv.innerHTML = '<i class="fas fa-camera"></i> Scanning for QR codes...';
+                statusDiv.style.color = '#4caf50';
+                requestAnimationFrame(tick);
+            } catch (error) {
+                statusDiv.innerHTML = '<i class="fas fa-exclamation-circle"></i> Unable to access camera. Please check permissions.';
+                statusDiv.style.color = '#f44336';
+            }
+        };
+
+        stopBtn.onclick = () => {
+            scanning = false;
+            if (stream) {
+                stream.getTracks().forEach(track => track.stop());
+                stream = null;
+            }
+            video.srcObject = null;
+            startBtn.style.display = 'inline-flex';
+            stopBtn.style.display = 'none';
+            statusDiv.innerHTML = '<i class="fas fa-info-circle"></i> Camera stopped';
+            statusDiv.style.color = 'var(--text-secondary)';
+        };
+
+        function tick() {
+            if (!scanning) return;
+            if (video.readyState === video.HAVE_ENOUGH_DATA) {
+                canvas.width = video.videoWidth;
+                canvas.height = video.videoHeight;
+                ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+                const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+                const code = jsQR(imageData.data, imageData.width, imageData.height);
+                
+                if (code && code.data !== lastScanned) {
+                    lastScanned = code.data;
+                    statusDiv.innerHTML = '<i class="fas fa-qrcode"></i> QR Code detected! Analyzing...';
+                    statusDiv.style.color = '#ff9800';
+                    
+                    fetch('/check_url', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ url: code.data })
+                    })
+                    .then(res => res.json())
+                    .then(data => {
+                        if (data.error) {
+                            resultDiv.innerHTML = '<div class="error-message"><i class="fas fa-exclamation-circle"></i> ' + data.error + '</div>';
+                            statusDiv.innerHTML = '<i class="fas fa-exclamation-circle"></i> Invalid QR content';
+                            statusDiv.style.color = '#f44336';
+                        } else {
+                            resultDiv.innerHTML = `
+                                <div class="result-card" style="margin-top:1rem;">
+                                    <div class="result-header">
+                                        <h3><i class="fas fa-qrcode"></i> QR Scan Result</h3>
+                                        <span class="result-badge ${data.verdict === 'SAFE' ? 'safe' : 'unsafe'}">
+                                            ${data.verdict === 'SAFE' ? '✅' : '⚠️'} ${data.verdict}
+                                        </span>
+                                    </div>
+                                    <div class="result-body">
+                                        <div class="result-url">
+                                            <span>${data.url}</span>
+                                            <button class="copy-url-btn" onclick="copyToClipboard('${data.url}')">
+                                                <i class="fas fa-copy"></i> Copy
+                                            </button>
+                                        </div>
+                                        <div class="result-confidence">
+                                            <div class="confidence-label">
+                                                <span>Confidence</span>
+                                                <span>${data.confidence}%</span>
+                                            </div>
+                                            <div class="confidence-bar">
+                                                <div class="confidence-fill ${data.confidence >= 70 ? 'high' : data.confidence >= 40 ? 'medium' : 'low'}" 
+                                                     style="width: ${data.confidence}%"></div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            `;
+                            statusDiv.innerHTML = '<i class="fas fa-check-circle"></i> Scan complete!';
+                            statusDiv.style.color = '#4caf50';
+                        }
+                    })
+                    .catch(error => {
+                        resultDiv.innerHTML = '<div class="error-message"><i class="fas fa-exclamation-circle"></i> Error: ' + error.message + '</div>';
+                    });
+                }
+            }
+            requestAnimationFrame(tick);
+        }
+
+        // ============================================
+        // MAKE FUNCTIONS GLOBAL
+        // ============================================
+        window.switchTab = switchTab;
+        window.setExampleUrl = setExampleUrl;
+        window.copyToClipboard = copyToClipboard;
+        window.showMessage = showMessage;
+        window.clearFile = clearFile;
+    </script>
+</body>
+</html>

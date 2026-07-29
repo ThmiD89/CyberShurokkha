@@ -1,0 +1,57 @@
+/* mood-sad.css - Sad Theme */
+/* Background: Deep Indigo Gradient */
+/* Box Color: Soft Violet */
+
+:root {
+    --bg-primary: linear-gradient(135deg, #2C1A4D 0%, #4A2A7A 50%, #6B4E9E 100%);
+    --bg-secondary: #5A3D8C;
+    --bg-nav: rgba(44, 26, 77, 0.95);
+    
+    --text-primary: #E8E2F0;
+    --text-secondary: #C4B5D0;
+    --text-light: #FFFFFF;
+    --text-dark: #F0E8F8;
+    
+    --btn-primary: #7C5CA0;
+    --btn-primary-hover: #6B4E9E;
+    --btn-secondary: #C4B5D0;
+    --btn-secondary-hover: #B09CC8;
+    --accent: #A78BFA;
+    --accent-hover: #8B5CF6;
+    --border-color: #9B7BB5;
+    
+    /* Box Color - Soft Violet (NOT WHITE) */
+    --card-bg: #5A3D8C;
+    --card-border: #9B7BB5;
+    --card-shadow: 0 10px 30px rgba(74, 42, 122, 0.35);
+    --feature-card-bg: #5A3D8C;
+    --pricing-card-bg: #5A3D8C;
+    --step-card-bg: #5A3D8C;
+    
+    --card-shadow-hover: 0 15px 40px rgba(138, 43, 226, 0.35);
+}
+
+body {
+    background: var(--bg-primary);
+    min-height: 100vh;
+}
+
+.feature-card, .pricing-card, .step {
+    background: var(--feature-card-bg);
+    border: 1px solid var(--card-border);
+    border-radius: 1rem;
+    padding: 1.5rem;
+    transition: all 0.3s ease;
+    box-shadow: var(--card-shadow);
+}
+
+.feature-card:hover, .pricing-card:hover, .step:hover {
+    transform: translateY(-5px);
+    box-shadow: var(--card-shadow-hover);
+    background: #6B4E9E;
+}
+
+.pricing-card.popular {
+    border: 2px solid var(--accent);
+    background: #6B4E9E;
+}

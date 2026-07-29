@@ -1,0 +1,57 @@
+/* mood-energetic.css - Energetic Theme */
+/* Background: Fiery Red Gradient */
+/* Box Color: Vibrant Coral */
+
+:root {
+    --bg-primary: linear-gradient(135deg, #FF416C 0%, #FF4B2B 100%);
+    --bg-secondary: #FF6B4A;
+    --bg-nav: rgba(255, 65, 108, 0.92);
+    
+    --text-primary: #4A0024;
+    --text-secondary: #7B1E2E;
+    --text-light: #FFCDD2;
+    --text-dark: #2E0015;
+    
+    --btn-primary: #FF5722;
+    --btn-primary-hover: #E64A19;
+    --btn-secondary: #FFCDD2;
+    --btn-secondary-hover: #EF9A9A;
+    --accent: #FFD700;
+    --accent-hover: #FFC107;
+    --border-color: #FFAB91;
+    
+    /* Box Color - Vibrant Coral (NOT WHITE) */
+    --card-bg: #FFAB91;
+    --card-border: #FF5722;
+    --card-shadow: 0 10px 30px rgba(255, 65, 108, 0.25);
+    --feature-card-bg: #FFAB91;
+    --pricing-card-bg: #FFAB91;
+    --step-card-bg: #FFAB91;
+    
+    --card-shadow-hover: 0 15px 40px rgba(255, 65, 108, 0.35);
+}
+
+body {
+    background: var(--bg-primary);
+    min-height: 100vh;
+}
+
+.feature-card, .pricing-card, .step {
+    background: var(--feature-card-bg);
+    border: 1px solid var(--card-border);
+    border-radius: 1rem;
+    padding: 1.5rem;
+    transition: all 0.3s ease;
+    box-shadow: var(--card-shadow);
+}
+
+.feature-card:hover, .pricing-card:hover, .step:hover {
+    transform: translateY(-5px);
+    box-shadow: var(--card-shadow-hover);
+    background: #FFBFA5;
+}
+
+.pricing-card.popular {
+    border: 2px solid var(--accent);
+    background: #FFBFA5;
+}

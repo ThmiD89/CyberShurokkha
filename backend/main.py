@@ -1,4 +1,5 @@
 from fastapi import FastAPI, Depends
+from fastapi.middleware.cors import CORSMiddleware
 from sqlalchemy import text
 from sqlalchemy.orm import Session
 import joblib
@@ -8,7 +9,17 @@ from database import engine, get_db
 from models import ScamAnalysis
 from schemas import ScamCheckRequest, ScamCheckResponse
 
-app = FastAPI()
+#app = FastAPI()
+app = FastAPI(title="CyberShurokkha 360 API", version="1.0.0")
+
+# Add CORS middleware (allow frontend to call API)
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["http://localhost:3000"],   # Your Next.js frontend
+    allow_credentials=True,
+    allow_methods=["*"],                       # Allow all methods (GET, POST, etc.)
+    allow_headers=["*"],                       # Allow all headers
+)
 
 model = joblib.load("ml_models/scam_classifier.joblib")
 vectorizer = joblib.load("ml_models/tfidf_vectorizer.joblib")
@@ -84,3 +95,59 @@ def analyze_scam(payload: ScamCheckRequest, db: Session = Depends(get_db)):
         reasons=reasons,
         recommendation=recommendation,
     )
+
+from models import CommunityReport, District
+from schemas import ReportRequest, ReportResponse, DistrictSummary
+from sqlalchemy import func
+
+
+@app.post("/reports", response_model=ReportResponse)
+def create_report(payload: ReportRequest, db: Session = Depends(get_db)):
+    report = CommunityReport(
+        id=uuid.uuid4(),
+        user_id=None,  # anonymous for now
+        district_id=payload.district_id,
+        category=payload.category,
+        description=payload.description,
+        screenshot_url=payload.screenshot_url,
+        status="pending",
+    )
+    db.add(report)
+    db.commit()
+
+    return ReportResponse(
+        id=str(report.id),
+        district_id=report.district_id,
+        category=report.category,
+        description=report.description,
+        status=report.status,
+    )
+
+
+@app.get("/threat-map/summary", response_model=list[DistrictSummary])
+def threat_map_summary(db: Session = Depends(get_db)):
+    results = (
+        db.query(
+            District.id,
+            District.name_en,
+            District.name_bn,
+            District.centroid_lat,
+            District.centroid_lng,
+            func.count(CommunityReport.id).label("total_reports"),
+        )
+        .outerjoin(CommunityReport, CommunityReport.district_id == District.id)
+        .group_by(District.id)
+        .all()
+    )
+
+    return [
+        DistrictSummary(
+            district_id=r.id,
+            name_en=r.name_en,
+            name_bn=r.name_bn,
+            centroid_lat=r.centroid_lat,
+            centroid_lng=r.centroid_lng,
+            total_reports=r.total_reports,
+        )
+        for r in results
+    ]

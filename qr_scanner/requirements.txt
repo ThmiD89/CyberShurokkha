@@ -1,0 +1,10 @@
+flask
+flask-cors
+pandas
+scikit-learn
+opencv-python
+pillow
+python-whois
+requests
+joblib
+beautifulsoup4
