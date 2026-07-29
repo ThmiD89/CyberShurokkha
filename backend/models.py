@@ -86,7 +86,62 @@ class JobScamCheck(Base):
     job_title = Column(String(200))
     company_name = Column(String(200))
     raw_post_text = Column(Text, nullable=False)
+    
+    # ===== ADD THESE NEW COLUMNS =====
+    requests_advance_payment = Column(Boolean, default=False)
+    salary_unrealistic = Column(Boolean, default=False)
+    missing_company_info = Column(Boolean, default=False)
+    urgent_hiring_language = Column(Boolean, default=False)
+    grammar_quality_score = Column(SmallInteger)
+    # ================================
+    
     risk_score = Column(SmallInteger, nullable=False)
     risk_level = Column(String(20), nullable=False)
     reasons = Column(JSONB, nullable=False)
     created_at = Column(TIMESTAMP(timezone=True), server_default=func.now())
+
+class LessonTier(Base):
+    __tablename__ = "lesson_tiers"
+
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    name_en = Column(String(100), nullable=False)
+    name_bn = Column(String(100), nullable=False)
+    order_index = Column(Integer, nullable=False)
+    unlock_requirement = Column(Integer, nullable=False, default=0)  # lessons needed in previous tier
+
+
+class Lesson(Base):
+    __tablename__ = "lessons"
+
+    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    tier_id = Column(Integer, ForeignKey("lesson_tiers.id"), nullable=False)
+    title_en = Column(String(200), nullable=False)
+    title_bn = Column(String(200), nullable=False)
+    content_en = Column(Text, nullable=False)
+    content_bn = Column(Text, nullable=False)
+    order_index = Column(Integer, nullable=False)
+    estimated_minutes = Column(Integer, nullable=False, default=5)
+    created_at = Column(TIMESTAMP(timezone=True), server_default=func.now())
+
+
+class QuizQuestion(Base):
+    __tablename__ = "quiz_questions"
+
+    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    lesson_id = Column(UUID(as_uuid=True), ForeignKey("lessons.id"), nullable=False)
+    question_en = Column(Text, nullable=False)
+    question_bn = Column(Text, nullable=False)
+    options_en = Column(JSONB, nullable=False)  # ["option A", "option B", "option C", "option D"]
+    options_bn = Column(JSONB, nullable=False)
+    correct_option_index = Column(Integer, nullable=False)
+
+
+class UserLessonProgress(Base):
+    __tablename__ = "user_lesson_progress"
+
+    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    user_id = Column(UUID(as_uuid=True), ForeignKey("users.id", ondelete="CASCADE"), nullable=False)
+    lesson_id = Column(UUID(as_uuid=True), ForeignKey("lessons.id"), nullable=False)
+    completed = Column(Boolean, nullable=False, default=False)
+    quiz_score = Column(Integer, nullable=True)  # out of 4
+    completed_at = Column(TIMESTAMP(timezone=True), nullable=True)
