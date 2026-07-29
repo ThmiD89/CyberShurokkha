@@ -16,6 +16,7 @@ export default function Navbar() {
           <a href="/scan" className="nav-link">Scam Detector</a>
           <a href="/qr-scan" className="nav-link">QR Scanner</a>
           <a href="/threat-map" className="nav-link">Threat Map</a>
+          <a href="/all-reports" className="nav-link">All Reports</a>
           <a href="/report" className="nav-link">Report</a>
           <a href="/job-check" className="nav-link">Job Check</a>
           <a href="/learn-hub" className="nav-link">Learn</a>

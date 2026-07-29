@@ -21,6 +21,7 @@ export default function Footer() {
           <div className="footer-column">
             <h4>Community</h4>
             <a href="/threat-map">Threat Map</a>
+            <a href="/all-reports">All Reports</a>
             <a href="/report">Report Scam</a>
           </div>
           <div className="footer-column">

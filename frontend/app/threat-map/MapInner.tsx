@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { MapContainer, TileLayer, CircleMarker, Popup } from "react-leaflet";
+import { MapContainer, TileLayer, CircleMarker, Tooltip } from "react-leaflet";
 import "leaflet/dist/leaflet.css";
 
 type DistrictSummary = {
@@ -13,9 +13,17 @@ type DistrictSummary = {
   total_reports: number;
 };
 
+type Report = {
+  id: string;
+  category: string;
+  description: string;
+  created_at: string;
+};
+
 export default function ThreatMapPage() {
   const [data, setData] = useState<DistrictSummary[]>([]);
   const [loading, setLoading] = useState(true);
+  const [reportsByDistrict, setReportsByDistrict] = useState<Record<number, Report[]>>({});
 
   useEffect(() => {
     fetch("http://localhost:8000/threat-map/summary")
@@ -28,6 +36,20 @@ export default function ThreatMapPage() {
         console.error("Failed to load threat map data:", err);
         setLoading(false);
       });
+
+    // Fetch ALL reports once, group by district client-side
+    // (avoids firing 64 separate requests, one per district)
+    fetch("http://localhost:8000/reports")
+      .then((res) => res.json())
+      .then((reports: (Report & { district_id: number })[]) => {
+        const grouped: Record<number, Report[]> = {};
+        reports.forEach((r) => {
+          if (!grouped[r.district_id]) grouped[r.district_id] = [];
+          grouped[r.district_id].push(r);
+        });
+        setReportsByDistrict(grouped);
+      })
+      .catch((err) => console.error("Failed to load reports:", err));
   }, []);
 
   if (loading) {
@@ -51,17 +73,11 @@ export default function ThreatMapPage() {
 
           const lat = parseFloat(d.centroid_lat);
           const lng = parseFloat(d.centroid_lng);
-
-          // Radius scales with report count — minimum visible dot even at 0
           const radius = 6 + Math.min(d.total_reports * 4, 30);
-
-          // Color scales from safe (green) to dangerous (red) based on count
           const color =
-            d.total_reports === 0
-              ? "#22c55e"
-              : d.total_reports < 5
-              ? "#eab308"
-              : "#ef4444";
+            d.total_reports === 0 ? "#22c55e" : d.total_reports < 5 ? "#eab308" : "#ef4444";
+
+          const reports = reportsByDistrict[d.district_id] || [];
 
           return (
             <CircleMarker
@@ -70,11 +86,24 @@ export default function ThreatMapPage() {
               radius={radius}
               pathOptions={{ color, fillColor: color, fillOpacity: 0.6 }}
             >
-              <Popup>
-                <strong>{d.name_en}</strong> ({d.name_bn})
-                <br />
-                Reports: {d.total_reports}
-              </Popup>
+              <Tooltip direction="top" offset={[0, -radius]} opacity={1}>
+                <div style={{ minWidth: "180px" }}>
+                  <strong>{d.name_en}</strong> ({d.name_bn})
+                  <br />
+                  Total reports: {d.total_reports}
+                  {reports.length > 0 && (
+                    <ul style={{ margin: "6px 0 0", paddingLeft: "16px" }}>
+                      {reports.slice(0, 3).map((r) => (
+                        <li key={r.id} style={{ fontSize: "0.8rem" }}>
+                          <strong>{r.category.replace(/_/g, " ")}</strong>: {r.description.slice(0, 40)}
+                          {r.description.length > 40 ? "..." : ""}
+                        </li>
+                      ))}
+                      {reports.length > 3 && <li>+{reports.length - 3} more...</li>}
+                    </ul>
+                  )}
+                </div>
+              </Tooltip>
             </CircleMarker>
           );
         })}
