@@ -1,5 +1,6 @@
-from typing import List, Optional
+from typing import List, Optional, Dict
 from pydantic import BaseModel
+from datetime import datetime
 
 # ===== SCAM DETECTOR =====
 class ScamCheckRequest(BaseModel):
@@ -56,3 +57,58 @@ class DistrictSummary(BaseModel):
     centroid_lat: Optional[str] = None
     centroid_lng: Optional[str] = None
     total_reports: int
+    
+class ReportListItem(BaseModel):
+    id: str
+    district_id: int
+    district_name_en: str
+    district_name_bn: str
+    category: str
+    description: str
+    status: str
+    created_at: datetime
+
+# ===== LEARNING HUB =====
+class TierResponse(BaseModel):
+    id: int
+    name_en: str
+    name_bn: str
+    order_index: int
+    unlocked: bool
+    lessons_completed: int
+    lessons_total: int
+
+class LessonSummary(BaseModel):
+    id: str
+    title: str
+    order_index: int
+    estimated_minutes: int
+    completed: bool
+
+class LessonDetail(BaseModel):
+    id: str
+    title: str
+    content: str
+    estimated_minutes: int
+
+class QuizQuestionResponse(BaseModel):
+    id: str
+    question: str
+    options: List[str]
+
+class QuizSubmitRequest(BaseModel):
+    lesson_id: str
+    answers: Dict[str, int]  # {question_id: selected_option_index}
+
+class QuizAnswerResult(BaseModel):
+    question_id: str
+    correct_option_index: int
+    is_correct: bool
+
+class QuizSubmitResponse(BaseModel):
+    score: int
+    total: int
+    passed: bool
+    lesson_completed: bool
+    results: List[QuizAnswerResult]
+

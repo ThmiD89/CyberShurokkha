@@ -25,7 +25,7 @@ export default function Footer() {
           </div>
           <div className="footer-column">
             <h4>Learn</h4>
-            <a href="/learn">Learning Hub</a>
+            <a href="/learn-hub">Learning Hub</a>
           </div>
         </div>
       </div>

@@ -8,12 +8,18 @@ import os
 import scipy.sparse as sp
 
 from database import engine, get_db
-from models import ScamAnalysis, CommunityReport, District, JobScamCheck
+from models import (
+    ScamAnalysis, CommunityReport, District, JobScamCheck,
+    LessonTier, Lesson, QuizQuestion, UserLessonProgress,
+)
 from schemas import (
     ScamCheckRequest, ScamCheckResponse,
     ReportRequest, ReportResponse,
     DistrictSummary,
-    JobCheckRequest, JobCheckResponse
+    JobCheckRequest, JobCheckResponse,
+    TierResponse, LessonSummary, LessonDetail,
+    QuizQuestionResponse, QuizSubmitRequest, QuizSubmitResponse, QuizAnswerResult,
+    ReportListItem,
 )
 
 # ============================================
@@ -46,6 +52,16 @@ job_model = joblib.load(JOB_MODEL_PATH)
 job_vectorizer = joblib.load(JOB_VECTORIZER_PATH)
 
 print("✅ All models loaded successfully!")
+
+# ============================================
+# HELPERS
+# ============================================
+
+def get_lang_field(obj, field_base: str, lang: str):
+    """Returns obj.<field_base>_en or obj.<field_base>_bn depending on lang, defaulting to bn."""
+    suffix = "en" if lang == "en" else "bn"
+    return getattr(obj, f"{field_base}_{suffix}")
+
 
 # ============================================
 # HEALTH CHECKS
@@ -183,7 +199,31 @@ def threat_map_summary(db: Session = Depends(get_db)):
         )
         for r in results
     ]
+@app.get("/reports", response_model=list[ReportListItem])
+def list_reports(district_id: int | None = None, db: Session = Depends(get_db)):
+    query = (
+        db.query(CommunityReport, District.name_en, District.name_bn)
+        .join(District, CommunityReport.district_id == District.id)
+        .order_by(CommunityReport.created_at.desc())
+    )
+    if district_id is not None:
+        query = query.filter(CommunityReport.district_id == district_id)
 
+    results = query.all()
+
+    return [
+        ReportListItem(
+            id=str(report.id),
+            district_id=report.district_id,
+            district_name_en=name_en,
+            district_name_bn=name_bn,
+            category=report.category,
+            description=report.description,
+            status=report.status,
+            created_at=report.created_at,
+        )
+        for report, name_en, name_bn in results
+    ]
 
 # ============================================
 # MODULE 4: FAKE JOB CHECKER
@@ -192,33 +232,33 @@ def threat_map_summary(db: Session = Depends(get_db)):
 @app.post("/check-job", response_model=JobCheckResponse)
 def check_job(job: JobCheckRequest, db: Session = Depends(get_db)):
     """Analyze job posting for fraud detection"""
-    
+
     full_text = " ".join([
         job.title, job.company_profile, job.description,
         job.requirements, job.benefits
     ]).strip()
-    
+
     if len(full_text) < 10:
         raise HTTPException(
             status_code=400,
             detail="Not enough job posting text provided. Please include at least a title and description."
         )
-    
+
     try:
         text_vec = job_vectorizer.transform([full_text])
         flags = [[job.telecommuting, job.has_company_logo, job.has_questions]]
         combined = sp.hstack([text_vec, flags])
-        
+
         prediction = job_model.predict(combined)[0]
         probability = job_model.predict_proba(combined)[0][1]
-        
+
         risk_score = round(float(probability) * 100, 2)
         is_fake = bool(prediction)
-        
+
         # Risk factors
         risk_factors = []
         text_lower = full_text.lower()
-        
+
         suspicious_patterns = [
             ("no experience", "No experience required for high-paying job"),
             ("urgent", "Urgent/Immediate start requested"),
@@ -243,32 +283,32 @@ def check_job(job: JobCheckRequest, db: Session = Depends(get_db)):
             ("deposit", "Request for payment"),
             ("wire transfer", "Request for payment"),
         ]
-        
+
         for pattern, factor in suspicious_patterns:
             if pattern in text_lower:
                 risk_factors.append(factor)
-        
+
         if len(job.company_profile.strip()) < 20:
             risk_factors.append("Vague or missing company description")
-        
+
         if len(job.requirements.strip()) < 20:
             risk_factors.append("Very short or missing requirements section")
-        
+
         if len(job.benefits.strip()) < 10:
             risk_factors.append("No benefits mentioned - unusual for legitimate jobs")
-        
+
         if len(job.description.strip()) < 50:
             risk_factors.append("Very brief job description")
-        
+
         if text_lower.count('!') > 5:
             risk_factors.append("Excessive use of exclamation marks")
-        
+
         if not job.has_company_logo:
             risk_factors.append("No company logo provided")
-        
+
         if len(risk_factors) == 0 and probability > 0.6:
             risk_factors.append("Patterns consistent with fraudulent job postings")
-        
+
         # Remove duplicates
         seen = set()
         unique_factors = []
@@ -276,9 +316,9 @@ def check_job(job: JobCheckRequest, db: Session = Depends(get_db)):
             if factor not in seen:
                 seen.add(factor)
                 unique_factors.append(factor)
-        
+
         risk_factors = unique_factors[:5]
-        
+
         # ===== SAVE TO DATABASE =====
         record = JobScamCheck(
             id=uuid.uuid4(),
@@ -298,7 +338,7 @@ def check_job(job: JobCheckRequest, db: Session = Depends(get_db)):
         db.add(record)
         db.commit()
         print(f"✅ Job scan saved to database: {record.id}")
-        
+
         return JobCheckResponse(
             is_fake=is_fake,
             confidence=risk_score,
@@ -307,12 +347,108 @@ def check_job(job: JobCheckRequest, db: Session = Depends(get_db)):
             risk_factors=risk_factors,
             status="Complete"
         )
-        
+
     except Exception as e:
         raise HTTPException(
             status_code=500,
             detail=f"Error during analysis: {str(e)}"
         )
+
+
+# ============================================
+# MODULE 5: LEARNING HUB
+# ============================================
+
+@app.get("/learn/tiers", response_model=list[TierResponse])
+def list_tiers(db: Session = Depends(get_db)):
+    tiers = db.query(LessonTier).order_by(LessonTier.order_index).all()
+    result = []
+    for tier in tiers:
+        lessons_in_tier = db.query(Lesson).filter(Lesson.tier_id == tier.id).all()
+        # No auth wired into these routes yet, so real per-user progress/unlocking
+        # isn't tracked here. Tier 0 (order_index 0) is always shown unlocked;
+        # everything else is locked until login + user_lesson_progress is wired in.
+        unlocked = tier.order_index == 0
+        result.append(TierResponse(
+            id=tier.id,
+            name_en=tier.name_en,
+            name_bn=tier.name_bn,
+            order_index=tier.order_index,
+            unlocked=unlocked,
+            lessons_completed=0,
+            lessons_total=len(lessons_in_tier),
+        ))
+    return result
+
+
+@app.get("/learn/lessons", response_model=list[LessonSummary])
+def list_lessons(tier_id: int, lang: str = "bn", db: Session = Depends(get_db)):
+    lessons = db.query(Lesson).filter(Lesson.tier_id == tier_id).order_by(Lesson.order_index).all()
+    return [
+        LessonSummary(
+            id=str(l.id),
+            title=get_lang_field(l, "title", lang),
+            order_index=l.order_index,
+            estimated_minutes=l.estimated_minutes,
+            completed=False,  # wire to user_lesson_progress once auth exists
+        )
+        for l in lessons
+    ]
+
+
+@app.get("/learn/lessons/{lesson_id}", response_model=LessonDetail)
+def get_lesson(lesson_id: str, lang: str = "bn", db: Session = Depends(get_db)):
+    lesson = db.query(Lesson).filter(Lesson.id == lesson_id).first()
+    if not lesson:
+        raise HTTPException(status_code=404, detail="Lesson not found")
+    return LessonDetail(
+        id=str(lesson.id),
+        title=get_lang_field(lesson, "title", lang),
+        content=get_lang_field(lesson, "content", lang),
+        estimated_minutes=lesson.estimated_minutes,
+    )
+
+
+@app.get("/learn/lessons/{lesson_id}/quiz", response_model=list[QuizQuestionResponse])
+def get_quiz(lesson_id: str, lang: str = "bn", db: Session = Depends(get_db)):
+    questions = db.query(QuizQuestion).filter(QuizQuestion.lesson_id == lesson_id).all()
+    return [
+        QuizQuestionResponse(
+            id=str(q.id),
+            question=get_lang_field(q, "question", lang),
+            options=q.options_en if lang == "en" else q.options_bn,
+        )
+        for q in questions
+    ]
+
+
+@app.post("/learn/quiz/submit", response_model=QuizSubmitResponse)
+def submit_quiz(payload: QuizSubmitRequest, db: Session = Depends(get_db)):
+    questions = db.query(QuizQuestion).filter(QuizQuestion.lesson_id == payload.lesson_id).all()
+    total = len(questions)
+    score = 0
+    results = []
+
+    for q in questions:
+        selected = payload.answers.get(str(q.id))
+        is_correct = selected is not None and selected == q.correct_option_index
+        if is_correct:
+            score += 1
+        results.append(QuizAnswerResult(
+            question_id=str(q.id),
+            correct_option_index=q.correct_option_index,
+            is_correct=is_correct,
+        ))
+
+    passed = score >= 3
+
+    return QuizSubmitResponse(
+        score=score,
+        total=total,
+        passed=passed,
+        lesson_completed=passed,
+        results=results,
+    )
 
 
 # ============================================
@@ -329,6 +465,11 @@ print("   - POST /analyze-scam")
 print("   - POST /check-job")
 print("   - POST /reports")
 print("   - GET  /threat-map/summary")
+print("   - GET  /learn/tiers")
+print("   - GET  /learn/lessons")
+print("   - GET  /learn/lessons/{lesson_id}")
+print("   - GET  /learn/lessons/{lesson_id}/quiz")
+print("   - POST /learn/quiz/submit")
 print("   - GET  /health")
 print("   - GET  /db-check")
 print("=" * 50)

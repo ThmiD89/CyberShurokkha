@@ -18,7 +18,7 @@ export default function Navbar() {
           <a href="/threat-map" className="nav-link">Threat Map</a>
           <a href="/report" className="nav-link">Report</a>
           <a href="/job-check" className="nav-link">Job Check</a>
-          <a href="/learn" className="nav-link">Learn</a>
+          <a href="/learn-hub" className="nav-link">Learn</a>
         </div>
         <div className="nav-actions">
           <button onClick={openMoodSelector} className="mood-changer-btn">
