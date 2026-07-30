@@ -1,16 +1,19 @@
-from fastapi import FastAPI, Depends, HTTPException
+from fastapi import FastAPI, Depends, HTTPException, File, UploadFile  # Added File, UploadFile
 from fastapi.middleware.cors import CORSMiddleware
 from sqlalchemy import text, func
 from sqlalchemy.orm import Session
 import joblib
 import uuid
 import os
+import sys                     # Added
 import scipy.sparse as sp
+from urllib.parse import urlparse  # Added
 
 from database import engine, get_db
 from models import (
     ScamAnalysis, CommunityReport, District, JobScamCheck,
     LessonTier, Lesson, QuizQuestion, UserLessonProgress,
+    UrlScan,                    # Added UrlScan
 )
 from schemas import (
     ScamCheckRequest, ScamCheckResponse,
@@ -54,7 +57,53 @@ job_vectorizer = joblib.load(JOB_VECTORIZER_PATH)
 print("✅ All models loaded successfully!")
 
 # ============================================
-# HELPERS
+# QR SCANNER IMPORTS (added)
+# ============================================
+sys.path.insert(0, os.path.join(os.path.dirname(__file__), "qr_scanner"))
+from scan_and_check import scan_and_check, looks_like_url
+from predict_live import predict_url_uci
+
+# ============================================
+# QR SCANNER HELPER FUNCTIONS (added)
+# ============================================
+UPLOAD_FOLDER = os.path.join(os.path.dirname(__file__), "qr_scanner", "uploads")
+os.makedirs(UPLOAD_FOLDER, exist_ok=True)
+
+
+def save_url_scan(db: Session, url: str, risk_score: int, risk_level: str, reasons: list, source_type: str = "direct_url"):
+    """Save URL scan result to database."""
+    parsed = urlparse(url if url.startswith("http") else "http://" + url)
+    domain = parsed.netloc or parsed.path
+    uses_https = url.startswith("https://")
+    shortened_domains = ["bit.ly", "tinyurl.com", "goo.gl", "ow.ly", "is.gd", "buff.ly", "shorturl.at"]
+    is_shortened = any(d in domain for d in shortened_domains)
+    login_keywords = ["login", "signin", "secure", "account", "verify", "update", "bank", "payment"]
+    has_login_keyword = any(k in url.lower() for k in login_keywords)
+    suspicious_tlds = [".tk", ".ml", ".ga", ".cf", ".top", ".xyz", ".club", ".online", ".site"]
+    suspicious_tld = any(url.lower().endswith(tld) for tld in suspicious_tlds)
+
+    record = UrlScan(
+        id=uuid.uuid4(),
+        user_id=None,
+        source_type=source_type,
+        original_input=url,
+        resolved_url=url,
+        domain=domain,
+        uses_https=uses_https,
+        is_shortened=is_shortened,
+        has_login_keyword=has_login_keyword,
+        suspicious_tld=suspicious_tld,
+        risk_score=risk_score,
+        risk_level=risk_level,
+        reasons=reasons,
+    )
+    db.add(record)
+    db.commit()
+    print(f"✅ URL scan saved to database: {record.id}")
+
+
+# ============================================
+# HELPERS (existing)
 # ============================================
 
 def get_lang_field(obj, field_base: str, lang: str):
@@ -199,6 +248,8 @@ def threat_map_summary(db: Session = Depends(get_db)):
         )
         for r in results
     ]
+
+
 @app.get("/reports", response_model=list[ReportListItem])
 def list_reports(district_id: int | None = None, db: Session = Depends(get_db)):
     query = (
@@ -224,6 +275,7 @@ def list_reports(district_id: int | None = None, db: Session = Depends(get_db)):
         )
         for report, name_en, name_bn in results
     ]
+
 
 # ============================================
 # MODULE 4: FAKE JOB CHECKER
@@ -452,6 +504,72 @@ def submit_quiz(payload: QuizSubmitRequest, db: Session = Depends(get_db)):
 
 
 # ============================================
+# MODULE 2: QR / URL SCANNER (added)
+# ============================================
+
+@app.post("/check_url")
+def check_url(payload: dict, db: Session = Depends(get_db)):
+    """Check a URL for phishing using the ML model."""
+    decoded = (payload.get("url") or "").strip()
+    if not decoded:
+        raise HTTPException(status_code=400, detail="Missing URL")
+    if not looks_like_url(decoded):
+        raise HTTPException(status_code=400, detail=f'"{decoded}" does not look like a valid URL')
+
+    result = predict_url_uci(decoded)
+    result["decoded_from_qr"] = True
+    result["confidence"] = float(result["confidence"])
+
+    if result["verdict"] == "SAFE":
+        risk_score = max(0, 100 - int(result["confidence"]))
+        risk_level = "safe"
+        reasons = [f"URL appears safe (confidence: {result['confidence']}%)"]
+    else:
+        risk_score = int(result["confidence"])
+        risk_level = "dangerous"
+        reasons = [f"Phishing detected (confidence: {result['confidence']}%)", "URL matches known phishing patterns"]
+
+    save_url_scan(db, decoded, risk_score, risk_level, reasons, source_type="direct_url")
+    return result
+
+
+@app.post("/upload_qr")
+async def upload_qr(qr_image: UploadFile = File(...), db: Session = Depends(get_db)):
+    """Upload a QR code image, decode it, and check the URL for phishing."""
+    if not qr_image.filename:
+        raise HTTPException(status_code=400, detail="Empty filename")
+
+    path = os.path.join(UPLOAD_FOLDER, qr_image.filename)
+    with open(path, "wb") as f:
+        f.write(await qr_image.read())
+
+    try:
+        result = scan_and_check(path)
+        os.remove(path)
+
+        if "error" in result:
+            raise HTTPException(status_code=400, detail=result["error"])
+
+        result["confidence"] = float(result["confidence"])
+
+        if result["verdict"] == "SAFE":
+            risk_score = max(0, 100 - int(result["confidence"]))
+            risk_level = "safe"
+            reasons = [f"URL appears safe (confidence: {result['confidence']}%)"]
+        else:
+            risk_score = int(result["confidence"])
+            risk_level = "dangerous"
+            reasons = [f"Phishing detected (confidence: {result['confidence']}%)"]
+
+        save_url_scan(db, result["url"], risk_score, risk_level, reasons, source_type="qr_upload")
+        return result
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+# ============================================
 # STARTUP LOG
 # ============================================
 print("=" * 50)
@@ -470,6 +588,8 @@ print("   - GET  /learn/lessons")
 print("   - GET  /learn/lessons/{lesson_id}")
 print("   - GET  /learn/lessons/{lesson_id}/quiz")
 print("   - POST /learn/quiz/submit")
+print("   - POST /check_url")          # added
+print("   - POST /upload_qr")          # added
 print("   - GET  /health")
 print("   - GET  /db-check")
 print("=" * 50)
