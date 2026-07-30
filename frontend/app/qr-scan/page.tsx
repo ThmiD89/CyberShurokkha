@@ -3,6 +3,9 @@
 import { useState, useRef, useEffect } from "react";
 import jsQR from "jsqr";
 
+// ✅ Unified backend URL (FastAPI on port 8000)
+const API_BASE_URL = "http://localhost:8000";
+
 export default function QRScanPage() {
   const [activeTab, setActiveTab] = useState<"url" | "upload" | "camera">("url");
   const [url, setUrl] = useState("");
@@ -25,7 +28,7 @@ export default function QRScanPage() {
     setError("");
     setResult(null);
     try {
-      const res = await fetch("http://localhost:5000/check_url", {
+      const res = await fetch(`${API_BASE_URL}/check_url`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ url: urlToCheck }),
@@ -37,7 +40,7 @@ export default function QRScanPage() {
         setError(data.error || "Error checking URL");
       }
     } catch (err) {
-      setError("Failed to connect to QR scanner service. Make sure it's running on port 5000.");
+      setError("Failed to connect to QR scanner service. Make sure the backend is running on port 8000.");
     }
     setLoading(false);
   };
@@ -65,7 +68,7 @@ export default function QRScanPage() {
     formData.append("qr_image", file);
 
     try {
-      const res = await fetch("http://localhost:5000/upload_qr", {
+      const res = await fetch(`${API_BASE_URL}/upload_qr`, {
         method: "POST",
         body: formData,
       });
@@ -76,7 +79,7 @@ export default function QRScanPage() {
         setError(data.error || "Upload failed");
       }
     } catch (err) {
-      setError("Failed to upload image.");
+      setError("Failed to upload image. Make sure the backend is running on port 8000.");
     }
     setLoading(false);
   };
