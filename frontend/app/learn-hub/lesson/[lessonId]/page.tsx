@@ -52,8 +52,12 @@ export default function LessonPage() {
     setResult(null);
     setAnswers({});
     Promise.all([
-      fetch(`http://localhost:8000/learn/lessons/${lessonId}?lang=${lang}`).then((r) => r.json()),
-      fetch(`http://localhost:8000/learn/lessons/${lessonId}/quiz?lang=${lang}`).then((r) => r.json()),
+      fetch(`http://localhost:8000/learn/lessons/${lessonId}?lang=${lang}`, {
+        credentials: "include", // 👈 ADD THIS
+      }).then((r) => r.json()),
+      fetch(`http://localhost:8000/learn/lessons/${lessonId}/quiz?lang=${lang}`, {
+        credentials: "include", // 👈 ADD THIS
+      }).then((r) => r.json()),
     ])
       .then(([lessonData, quizData]) => {
         setLesson(lessonData);
@@ -73,6 +77,7 @@ export default function LessonPage() {
       const res = await fetch("http://localhost:8000/learn/quiz/submit", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
+        credentials: "include", // 👈 ADD THIS
         body: JSON.stringify({ lesson_id: lessonId, answers }),
       });
       if (!res.ok) throw new Error(`Server returned ${res.status}`);
@@ -124,33 +129,33 @@ export default function LessonPage() {
                   {qi + 1}. {q.question}
                 </p>
                 {q.options.map((opt, oi) => {
-  const isSelected = answers[q.id] === oi;
-  let cls = "quiz-option";
+                  const isSelected = answers[q.id] === oi;
+                  let cls = "quiz-option";
 
-  if (result) {
-    const qResult = result.results.find((r) => r.question_id === q.id);
-    if (qResult) {
-      if (oi === qResult.correct_option_index) {
-        cls += " correct";
-      } else if (isSelected && !qResult.is_correct) {
-        cls += " incorrect";
-      }
-    }
-  } else if (isSelected) {
-    cls += " selected";
-  }
+                  if (result) {
+                    const qResult = result.results.find((r) => r.question_id === q.id);
+                    if (qResult) {
+                      if (oi === qResult.correct_option_index) {
+                        cls += " correct";
+                      } else if (isSelected && !qResult.is_correct) {
+                        cls += " incorrect";
+                      }
+                    }
+                  } else if (isSelected) {
+                    cls += " selected";
+                  }
 
-  return (
-    <button
-      key={oi}
-      className={cls}
-      onClick={() => selectAnswer(q.id, oi)}
-      disabled={!!result}
-    >
-      {opt}
-    </button>
-  );
-})}
+                  return (
+                    <button
+                      key={oi}
+                      className={cls}
+                      onClick={() => selectAnswer(q.id, oi)}
+                      disabled={!!result}
+                    >
+                      {opt}
+                    </button>
+                  );
+                })}
               </div>
             ))}
 

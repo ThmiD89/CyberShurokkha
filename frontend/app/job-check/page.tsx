@@ -86,6 +86,7 @@ export default function JobCheckPage() {
       const res = await fetch("http://localhost:8000/check-job", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
+        credentials: "include", // <-- ADDED: sends the httpOnly cookie
         body: JSON.stringify(formData),
       });
 

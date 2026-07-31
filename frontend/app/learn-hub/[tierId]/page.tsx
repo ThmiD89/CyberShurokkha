@@ -32,13 +32,17 @@ export default function TierLessonsPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
 
-  // Get the tier name based on the ID
   const tierName = tierNames[tierId] || { en: "Lessons", bn: "পাঠ" };
   const displayTitle = lang === "bn" ? tierName.bn : tierName.en;
 
   useEffect(() => {
     setLoading(true);
-    fetch(`http://localhost:8000/learn/lessons?tier_id=${tierId}&lang=${lang}`)
+    fetch(
+      `http://localhost:8000/learn/lessons?tier_id=${tierId}&lang=${lang}`,
+      {
+        credentials: "include", // ✅ Sends the auth cookie
+      }
+    )
       .then((res) => {
         if (!res.ok) throw new Error(`Server returned ${res.status}`);
         return res.json();

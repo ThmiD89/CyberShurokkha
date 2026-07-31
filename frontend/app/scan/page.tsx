@@ -19,10 +19,11 @@ export default function ScanPage() {
     setResult(null);
 
     try {
-      const response = await axios.post("http://localhost:8000/analyze-scam", {
-        channel,
-        text,
-      });
+      const response = await axios.post(
+        "http://localhost:8000/analyze-scam",
+        { channel, text },
+        { withCredentials: true } // ← THIS IS THE FIX
+      );
       setResult(response.data);
     } catch (err: any) {
       console.error(err);
@@ -57,7 +58,6 @@ export default function ScanPage() {
   return (
     <div style={{ minHeight: "100vh", background: "var(--bg-primary)", padding: "2rem 1rem" }}>
       <div style={{ maxWidth: "800px", margin: "0 auto" }}>
-        {/* Back link */}
         <a href="/" style={{ color: "var(--accent)", textDecoration: "none", display: "inline-block", marginBottom: "1.5rem" }}>
           ← Back to Home
         </a>

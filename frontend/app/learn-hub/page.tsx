@@ -20,7 +20,9 @@ export default function LearningHubPage() {
   const [error, setError] = useState("");
 
   useEffect(() => {
-    fetch("http://localhost:8000/learn/tiers")
+    fetch("http://localhost:8000/learn/tiers", {
+      credentials: "include", // ✅ Sends the auth cookie
+    })
       .then((res) => {
         if (!res.ok) throw new Error(`Server returned ${res.status}`);
         return res.json();

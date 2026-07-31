@@ -1,15 +1,17 @@
 "use client";
 import { useTheme } from "../context/ThemeContext";
 import { useAuth } from "../context/AuthContext";
+import { useRouter } from "next/navigation";
 
 export default function Navbar() {
   const { openMoodSelector } = useTheme();
   const { user, logout } = useAuth();
+  const router = useRouter();
 
   return (
     <nav className="navbar">
       <div className="nav-container">
-        <div className="nav-logo">
+        <div className="nav-logo" onClick={() => router.push("/")} style={{ cursor: "pointer" }}>
           <span className="logo-icon">🛡️</span>
           <span className="logo-text">CyberShurokkha 360</span>
         </div>
@@ -28,6 +30,9 @@ export default function Navbar() {
           </button>
           {user ? (
             <>
+              <a href="/my-progress" className="nav-link" style={{ fontSize: "0.85rem" }}>
+                My Progress
+              </a>
               <span style={{ fontSize: "0.85rem", color: "var(--text-primary)" }}>
                 👋 {user.full_name.split(" ")[0]}
               </span>

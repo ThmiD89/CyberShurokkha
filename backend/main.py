@@ -24,6 +24,7 @@ from schemas import (
     QuizQuestionResponse, QuizSubmitRequest, QuizSubmitResponse, QuizAnswerResult,
     ReportListItem,
     SignupRequest, LoginRequest, UserResponse,
+    ActivityItem, ActivityStats, MyActivityResponse,
 )
 from auth import (
     hash_password, verify_password, set_auth_cookie, clear_auth_cookie,
@@ -176,7 +177,96 @@ def get_me(current_user: User = Depends(get_current_user)):
         email=current_user.email, role=current_user.role,
         preferred_lang=current_user.preferred_lang,
     )
+@app.get("/me/activity", response_model=MyActivityResponse)
+def get_my_activity(db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
+    scam_scans = (
+        db.query(ScamAnalysis)
+        .filter(ScamAnalysis.user_id == current_user.id)
+        .order_by(ScamAnalysis.created_at.desc())
+        .all()
+    )
+    url_scans = (
+        db.query(UrlScan)
+        .filter(UrlScan.user_id == current_user.id)
+        .order_by(UrlScan.created_at.desc())
+        .all()
+    )
+    job_checks = (
+        db.query(JobScamCheck)
+        .filter(JobScamCheck.user_id == current_user.id)
+        .order_by(JobScamCheck.created_at.desc())
+        .all()
+    )
+    reports = (
+        db.query(CommunityReport)
+        .filter(CommunityReport.user_id == current_user.id)
+        .order_by(CommunityReport.created_at.desc())
+        .all()
+    )
+    lessons_completed = (
+        db.query(UserLessonProgress)
+        .filter(UserLessonProgress.user_id == current_user.id, UserLessonProgress.completed == True)
+        .count()
+    )
 
+    items = []
+    dangerous_count = 0
+
+    for s in scam_scans:
+        if s.risk_level == "dangerous":
+            dangerous_count += 1
+        items.append(ActivityItem(
+            type="scam_scan",
+            title=f"Scam check ({s.channel})",
+            detail=(s.input_text[:80] + "...") if len(s.input_text) > 80 else s.input_text,
+            risk_level=s.risk_level,
+            created_at=s.created_at,
+        ))
+
+    for u in url_scans:
+        if u.risk_level == "dangerous":
+            dangerous_count += 1
+        items.append(ActivityItem(
+            type="url_scan",
+            title="URL / QR check",
+            detail=u.domain or u.original_input,
+            risk_level=u.risk_level,
+            created_at=u.created_at,
+        ))
+
+    for j in job_checks:
+        if j.risk_level == "dangerous":
+            dangerous_count += 1
+        items.append(ActivityItem(
+            type="job_check",
+            title="Job posting check",
+            detail=j.job_title or "Untitled job posting",
+            risk_level=j.risk_level,
+            created_at=j.created_at,
+        ))
+
+    for r in reports:
+        items.append(ActivityItem(
+            type="report",
+            title=f"Reported: {r.category.replace('_', ' ').title()}",
+            detail=(r.description[:80] + "...") if len(r.description) > 80 else r.description,
+            risk_level=None,
+            created_at=r.created_at,
+        ))
+
+    items.sort(key=lambda x: x.created_at, reverse=True)
+    items = items[:50]  # cap the feed at the 50 most recent actions
+
+    stats = ActivityStats(
+        total_scam_scans=len(scam_scans),
+        total_url_scans=len(url_scans),
+        total_job_checks=len(job_checks),
+        total_reports=len(reports),
+        dangerous_count=dangerous_count,
+        lessons_completed=lessons_completed,
+    )
+
+    return MyActivityResponse(stats=stats, items=items)
 
 # ============================================
 # HEALTH CHECKS
@@ -490,34 +580,80 @@ def check_job(
 # ============================================
 
 @app.get("/learn/tiers", response_model=list[TierResponse])
-def list_tiers(db: Session = Depends(get_db)):
+def list_tiers(
+    db: Session = Depends(get_db),
+    current_user: User | None = Depends(get_current_user_optional),
+):
     tiers = db.query(LessonTier).order_by(LessonTier.order_index).all()
     result = []
+    previous_completed = 0  # lessons completed in the tier just before this one
+
     for tier in tiers:
         lessons_in_tier = db.query(Lesson).filter(Lesson.tier_id == tier.id).all()
-        unlocked = True
+        lesson_ids = [l.id for l in lessons_in_tier]
+
+        lessons_completed = 0
+        if current_user and lesson_ids:
+            lessons_completed = (
+                db.query(UserLessonProgress)
+                .filter(
+                    UserLessonProgress.user_id == current_user.id,
+                    UserLessonProgress.lesson_id.in_(lesson_ids),
+                    UserLessonProgress.completed == True,
+                )
+                .count()
+            )
+
+        if tier.order_index == 0:
+            unlocked = True
+        elif not current_user:
+            unlocked = False  # anonymous visitors only ever see Tier 0 unlocked
+        else:
+            unlocked = previous_completed >= tier.unlock_requirement
+
         result.append(TierResponse(
             id=tier.id,
             name_en=tier.name_en,
             name_bn=tier.name_bn,
             order_index=tier.order_index,
             unlocked=unlocked,
-            lessons_completed=0,
+            lessons_completed=lessons_completed,
             lessons_total=len(lessons_in_tier),
         ))
+
+        previous_completed = lessons_completed
+
     return result
 
 
 @app.get("/learn/lessons", response_model=list[LessonSummary])
-def list_lessons(tier_id: int, lang: str = "bn", db: Session = Depends(get_db)):
+def list_lessons(
+    tier_id: int,
+    lang: str = "bn",
+    db: Session = Depends(get_db),
+    current_user: User | None = Depends(get_current_user_optional),
+):
     lessons = db.query(Lesson).filter(Lesson.tier_id == tier_id).order_by(Lesson.order_index).all()
+
+    completed_ids = set()
+    if current_user:
+        completed_rows = (
+            db.query(UserLessonProgress.lesson_id)
+            .filter(
+                UserLessonProgress.user_id == current_user.id,
+                UserLessonProgress.completed == True,
+            )
+            .all()
+        )
+        completed_ids = {row.lesson_id for row in completed_rows}
+
     return [
         LessonSummary(
             id=str(l.id),
             title=get_lang_field(l, "title", lang),
             order_index=l.order_index,
             estimated_minutes=l.estimated_minutes,
-            completed=False,
+            completed=l.id in completed_ids,
         )
         for l in lessons
     ]
@@ -550,7 +686,11 @@ def get_quiz(lesson_id: str, lang: str = "bn", db: Session = Depends(get_db)):
 
 
 @app.post("/learn/quiz/submit", response_model=QuizSubmitResponse)
-def submit_quiz(payload: QuizSubmitRequest, db: Session = Depends(get_db)):
+def submit_quiz(
+    payload: QuizSubmitRequest,
+    db: Session = Depends(get_db),
+    current_user: User | None = Depends(get_current_user_optional),
+):
     questions = db.query(QuizQuestion).filter(QuizQuestion.lesson_id == payload.lesson_id).all()
     total = len(questions)
     score = 0
@@ -568,6 +708,33 @@ def submit_quiz(payload: QuizSubmitRequest, db: Session = Depends(get_db)):
         ))
 
     passed = score >= 3
+
+    # ===== SAVE PROGRESS TO DATABASE =====
+    if current_user and passed:
+        # Check if progress record exists
+        progress = db.query(UserLessonProgress).filter(
+            UserLessonProgress.user_id == current_user.id,
+            UserLessonProgress.lesson_id == payload.lesson_id
+        ).first()
+
+        if progress:
+            # Update existing record
+            progress.completed = True
+            progress.quiz_score = score
+            progress.completed_at = func.now()
+        else:
+            # Create new record
+            progress = UserLessonProgress(
+                id=uuid.uuid4(),
+                user_id=current_user.id,
+                lesson_id=payload.lesson_id,
+                completed=True,
+                quiz_score=score,
+                completed_at=func.now(),
+            )
+            db.add(progress)
+        db.commit()
+        print(f"✅ Lesson progress saved for user {current_user.id}, lesson {payload.lesson_id}, score {score}")
 
     return QuizSubmitResponse(
         score=score,
@@ -674,6 +841,7 @@ print("   - POST /auth/signup")
 print("   - POST /auth/login")
 print("   - POST /auth/logout")
 print("   - GET  /auth/me")
+print("   - GET  /me/activity")
 print("   - POST /analyze-scam")
 print("   - POST /check-job")
 print("   - POST /reports")

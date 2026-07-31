@@ -1,3 +1,4 @@
+// frontend/app/report/page.tsx
 "use client";
 
 import { useState } from "react";
@@ -26,6 +27,7 @@ export default function ReportPage() {
       const res = await fetch("http://localhost:8000/reports", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
+        credentials: "include", // <-- ADDED: sends the httpOnly cookie
         body: JSON.stringify({
           district_id: parseInt(districtId),
           category,

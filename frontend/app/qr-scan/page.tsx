@@ -1,9 +1,9 @@
+// frontend/app/qr-scan/page.tsx
 "use client";
 
 import { useState, useRef, useEffect } from "react";
 import jsQR from "jsqr";
 
-// ✅ Unified backend URL (FastAPI on port 8000)
 const API_BASE_URL = "http://localhost:8000";
 
 export default function QRScanPage() {
@@ -31,6 +31,7 @@ export default function QRScanPage() {
       const res = await fetch(`${API_BASE_URL}/check_url`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
+        credentials: "include", // <-- ADDED: sends the httpOnly cookie
         body: JSON.stringify({ url: urlToCheck }),
       });
       const data = await res.json();
@@ -71,6 +72,7 @@ export default function QRScanPage() {
       const res = await fetch(`${API_BASE_URL}/upload_qr`, {
         method: "POST",
         body: formData,
+        credentials: "include", // <-- ADDED: sends the httpOnly cookie
       });
       const data = await res.json();
       if (res.ok) {

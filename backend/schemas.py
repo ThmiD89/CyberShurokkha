@@ -127,3 +127,22 @@ class UserResponse(BaseModel):
     email: str
     role: str
     preferred_lang: str
+# ===== MY ACTIVITY =====
+class ActivityItem(BaseModel):
+    type: str  # "scam_scan" | "url_scan" | "job_check" | "report"
+    title: str
+    detail: str
+    risk_level: Optional[str] = None
+    created_at: datetime
+
+class ActivityStats(BaseModel):
+    total_scam_scans: int
+    total_url_scans: int
+    total_job_checks: int
+    total_reports: int
+    dangerous_count: int
+    lessons_completed: int
+
+class MyActivityResponse(BaseModel):
+    stats: ActivityStats
+    items: List[ActivityItem]
