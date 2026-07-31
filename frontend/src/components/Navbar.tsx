@@ -1,9 +1,10 @@
 "use client";
-
 import { useTheme } from "../context/ThemeContext";
+import { useAuth } from "../context/AuthContext";
 
 export default function Navbar() {
   const { openMoodSelector } = useTheme();
+  const { user, logout } = useAuth();
 
   return (
     <nav className="navbar">
@@ -25,6 +26,24 @@ export default function Navbar() {
           <button onClick={openMoodSelector} className="mood-changer-btn">
             <i className="fas fa-palette"></i> Theme
           </button>
+          {user ? (
+            <>
+              <span style={{ fontSize: "0.85rem", color: "var(--text-primary)" }}>
+                👋 {user.full_name.split(" ")[0]}
+              </span>
+              <button
+                onClick={logout}
+                className="btn-secondary"
+                style={{ padding: "0.5rem 1rem", fontSize: "0.85rem" }}
+              >
+                Log Out
+              </button>
+            </>
+          ) : (
+            <a href="/login" className="btn-primary" style={{ padding: "0.5rem 1rem", fontSize: "0.85rem" }}>
+              Log In
+            </a>
+          )}
         </div>
       </div>
     </nav>

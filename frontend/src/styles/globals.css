@@ -188,6 +188,7 @@ html { scroll-behavior: smooth; }
 .card:hover { transform: translateY(-3px); box-shadow: var(--card-shadow-hover); }
 .section-title { font-size: 2.2rem; font-weight: 700; color: var(--text-dark); margin-bottom: 1rem; text-align: center; }
 .section-subtitle { font-size: 1.1rem; color: var(--text-secondary); text-align: center; max-width: 600px; margin: 0 auto 2rem; }
+
 /* ============================================
    LEARNING HUB
    ============================================ */
@@ -317,13 +318,12 @@ html { scroll-behavior: smooth; }
     color: white;
     border-color: #e74c3c;
 }
-/* ============================================
-   LAYOUT FIXES - Navigation, Hero, Stats
-   ============================================ */
 
-/* Navigation */
+/* ============================================
+   NAVIGATION (UPDATED)
+   ============================================ */
 .navbar {
-    padding: 1rem 2rem;
+    padding: 0.8rem 2rem;
     background: var(--bg-nav);
     backdrop-filter: blur(12px);
     border-bottom: 1px solid var(--border-color);
@@ -333,20 +333,23 @@ html { scroll-behavior: smooth; }
 }
 
 .nav-container {
-    max-width: 1280px;
+    max-width: 1400px;
     margin: 0 auto;
     display: flex;
     justify-content: space-between;
     align-items: center;
+    gap: 1rem;
+    flex-wrap: wrap;
 }
 
 .nav-logo {
     display: flex;
     align-items: center;
     gap: 0.5rem;
-    font-size: 1.5rem;
+    font-size: 1.3rem;
     font-weight: bold;
     cursor: pointer;
+    white-space: nowrap;
 }
 
 .logo-icon {
@@ -362,14 +365,18 @@ html { scroll-behavior: smooth; }
 
 .nav-links {
     display: flex;
-    gap: 2rem;
+    gap: 1.1rem;
+    flex-wrap: wrap;
+    align-items: center;
 }
 
 .nav-link {
     text-decoration: none;
     font-weight: 500;
+    font-size: 0.88rem;
     color: var(--text-primary);
     transition: all 0.3s;
+    white-space: nowrap;
 }
 
 .nav-link:hover {
@@ -379,8 +386,9 @@ html { scroll-behavior: smooth; }
 
 .nav-actions {
     display: flex;
-    gap: 1rem;
+    gap: 0.7rem;
     align-items: center;
+    white-space: nowrap;
 }
 
 .mood-changer-btn {
@@ -398,7 +406,9 @@ html { scroll-behavior: smooth; }
     transform: scale(1.05);
 }
 
-/* Hero Section */
+/* ============================================
+   HERO SECTION
+   ============================================ */
 .hero-section {
     padding: 4rem 2rem;
     text-align: center;
@@ -479,7 +489,9 @@ html { scroll-behavior: smooth; }
     color: var(--text-secondary);
 }
 
-/* Footer */
+/* ============================================
+   FOOTER
+   ============================================ */
 .footer {
     margin-top: 4rem;
     padding: 3rem 2rem 1rem;
@@ -550,7 +562,9 @@ html { scroll-behavior: smooth; }
     color: var(--text-secondary);
 }
 
-/* Mood Overlay */
+/* ============================================
+   MOOD OVERLAY
+   ============================================ */
 .mood-overlay {
     position: fixed;
     top: 0;
@@ -649,7 +663,9 @@ html { scroll-behavior: smooth; }
     color: var(--text-secondary);
 }
 
-/* Responsive */
+/* ============================================
+   RESPONSIVE
+   ============================================ */
 @media (max-width: 768px) {
     .nav-links {
         display: none;

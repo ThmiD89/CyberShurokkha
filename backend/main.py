@@ -1,19 +1,19 @@
-from fastapi import FastAPI, Depends, HTTPException, File, UploadFile  # Added File, UploadFile
+from fastapi import FastAPI, Depends, HTTPException, File, UploadFile, Response
 from fastapi.middleware.cors import CORSMiddleware
 from sqlalchemy import text, func
 from sqlalchemy.orm import Session
 import joblib
 import uuid
 import os
-import sys                     # Added
+import sys
 import scipy.sparse as sp
-from urllib.parse import urlparse  # Added
+from urllib.parse import urlparse
 
 from database import engine, get_db
 from models import (
     ScamAnalysis, CommunityReport, District, JobScamCheck,
     LessonTier, Lesson, QuizQuestion, UserLessonProgress,
-    UrlScan,                    # Added UrlScan
+    UrlScan, User,
 )
 from schemas import (
     ScamCheckRequest, ScamCheckResponse,
@@ -23,6 +23,11 @@ from schemas import (
     TierResponse, LessonSummary, LessonDetail,
     QuizQuestionResponse, QuizSubmitRequest, QuizSubmitResponse, QuizAnswerResult,
     ReportListItem,
+    SignupRequest, LoginRequest, UserResponse,
+)
+from auth import (
+    hash_password, verify_password, set_auth_cookie, clear_auth_cookie,
+    get_current_user, get_current_user_optional,
 )
 
 # ============================================
@@ -70,7 +75,8 @@ UPLOAD_FOLDER = os.path.join(os.path.dirname(__file__), "qr_scanner", "uploads")
 os.makedirs(UPLOAD_FOLDER, exist_ok=True)
 
 
-def save_url_scan(db: Session, url: str, risk_score: int, risk_level: str, reasons: list, source_type: str = "direct_url"):
+def save_url_scan(db: Session, url: str, risk_score: int, risk_level: str, reasons: list,
+                   source_type: str = "direct_url", user_id=None):
     """Save URL scan result to database."""
     parsed = urlparse(url if url.startswith("http") else "http://" + url)
     domain = parsed.netloc or parsed.path
@@ -84,7 +90,7 @@ def save_url_scan(db: Session, url: str, risk_score: int, risk_level: str, reaso
 
     record = UrlScan(
         id=uuid.uuid4(),
-        user_id=None,
+        user_id=user_id,
         source_type=source_type,
         original_input=url,
         resolved_url=url,
@@ -113,6 +119,66 @@ def get_lang_field(obj, field_base: str, lang: str):
 
 
 # ============================================
+# MODULE 0: AUTH
+# ============================================
+
+@app.post("/auth/signup", response_model=UserResponse)
+def signup(payload: SignupRequest, response: Response, db: Session = Depends(get_db)):
+    existing = db.query(User).filter(User.email == payload.email.lower().strip()).first()
+    if existing:
+        raise HTTPException(status_code=400, detail="An account with this email already exists.")
+    if len(payload.password) < 8:
+        raise HTTPException(status_code=400, detail="Password must be at least 8 characters.")
+
+    user = User(
+        full_name=payload.full_name.strip(),
+        email=payload.email.lower().strip(),
+        password_hash=hash_password(payload.password),
+        role="citizen",
+        preferred_lang="bn",
+    )
+    db.add(user)
+    db.commit()
+    db.refresh(user)
+
+    set_auth_cookie(response, str(user.id))
+
+    return UserResponse(
+        id=str(user.id), full_name=user.full_name, email=user.email,
+        role=user.role, preferred_lang=user.preferred_lang,
+    )
+
+
+@app.post("/auth/login", response_model=UserResponse)
+def login(payload: LoginRequest, response: Response, db: Session = Depends(get_db)):
+    user = db.query(User).filter(User.email == payload.email.lower().strip()).first()
+    if not user or not verify_password(payload.password, user.password_hash):
+        raise HTTPException(status_code=401, detail="Invalid email or password.")
+
+    set_auth_cookie(response, str(user.id))
+
+    return UserResponse(
+        id=str(user.id), full_name=user.full_name, email=user.email,
+        role=user.role, preferred_lang=user.preferred_lang,
+    )
+
+
+@app.post("/auth/logout")
+def logout(response: Response):
+    clear_auth_cookie(response)
+    return {"status": "logged out"}
+
+
+@app.get("/auth/me", response_model=UserResponse)
+def get_me(current_user: User = Depends(get_current_user)):
+    return UserResponse(
+        id=str(current_user.id), full_name=current_user.full_name,
+        email=current_user.email, role=current_user.role,
+        preferred_lang=current_user.preferred_lang,
+    )
+
+
+# ============================================
 # HEALTH CHECKS
 # ============================================
 
@@ -134,7 +200,11 @@ def db_check():
 # ============================================
 
 @app.post("/analyze-scam", response_model=ScamCheckResponse)
-def analyze_scam(payload: ScamCheckRequest, db: Session = Depends(get_db)):
+def analyze_scam(
+    payload: ScamCheckRequest,
+    db: Session = Depends(get_db),
+    current_user: User | None = Depends(get_current_user_optional),
+):
     vec = scam_vectorizer.transform([payload.text])
 
     prediction = scam_model.predict(vec)[0]
@@ -168,7 +238,7 @@ def analyze_scam(payload: ScamCheckRequest, db: Session = Depends(get_db)):
 
     record = ScamAnalysis(
         id=uuid.uuid4(),
-        user_id=None,
+        user_id=current_user.id if current_user else None,
         channel=payload.channel,
         input_text=payload.text,
         detected_lang="en",
@@ -195,10 +265,14 @@ def analyze_scam(payload: ScamCheckRequest, db: Session = Depends(get_db)):
 # ============================================
 
 @app.post("/reports", response_model=ReportResponse)
-def create_report(payload: ReportRequest, db: Session = Depends(get_db)):
+def create_report(
+    payload: ReportRequest,
+    db: Session = Depends(get_db),
+    current_user: User | None = Depends(get_current_user_optional),
+):
     report = CommunityReport(
         id=uuid.uuid4(),
-        user_id=None,
+        user_id=current_user.id if current_user else None,
         district_id=payload.district_id,
         category=payload.category,
         description=payload.description,
@@ -282,7 +356,11 @@ def list_reports(district_id: int | None = None, db: Session = Depends(get_db)):
 # ============================================
 
 @app.post("/check-job", response_model=JobCheckResponse)
-def check_job(job: JobCheckRequest, db: Session = Depends(get_db)):
+def check_job(
+    job: JobCheckRequest,
+    db: Session = Depends(get_db),
+    current_user: User | None = Depends(get_current_user_optional),
+):
     """Analyze job posting for fraud detection"""
 
     full_text = " ".join([
@@ -374,7 +452,7 @@ def check_job(job: JobCheckRequest, db: Session = Depends(get_db)):
         # ===== SAVE TO DATABASE =====
         record = JobScamCheck(
             id=uuid.uuid4(),
-            user_id=None,
+            user_id=current_user.id if current_user else None,
             job_title=job.title[:200] if job.title else None,
             company_name=job.company_profile[:200] if job.company_profile else None,
             raw_post_text=full_text[:5000],
@@ -417,10 +495,7 @@ def list_tiers(db: Session = Depends(get_db)):
     result = []
     for tier in tiers:
         lessons_in_tier = db.query(Lesson).filter(Lesson.tier_id == tier.id).all()
-        # No auth wired into these routes yet, so real per-user progress/unlocking
-        # isn't tracked here. Tier 0 (order_index 0) is always shown unlocked;
-        # everything else is locked until login + user_lesson_progress is wired in.
-        unlocked = tier.order_index == 0
+        unlocked = True
         result.append(TierResponse(
             id=tier.id,
             name_en=tier.name_en,
@@ -442,7 +517,7 @@ def list_lessons(tier_id: int, lang: str = "bn", db: Session = Depends(get_db)):
             title=get_lang_field(l, "title", lang),
             order_index=l.order_index,
             estimated_minutes=l.estimated_minutes,
-            completed=False,  # wire to user_lesson_progress once auth exists
+            completed=False,
         )
         for l in lessons
     ]
@@ -508,7 +583,11 @@ def submit_quiz(payload: QuizSubmitRequest, db: Session = Depends(get_db)):
 # ============================================
 
 @app.post("/check_url")
-def check_url(payload: dict, db: Session = Depends(get_db)):
+def check_url(
+    payload: dict,
+    db: Session = Depends(get_db),
+    current_user: User | None = Depends(get_current_user_optional),
+):
     """Check a URL for phishing using the ML model."""
     decoded = (payload.get("url") or "").strip()
     if not decoded:
@@ -529,12 +608,20 @@ def check_url(payload: dict, db: Session = Depends(get_db)):
         risk_level = "dangerous"
         reasons = [f"Phishing detected (confidence: {result['confidence']}%)", "URL matches known phishing patterns"]
 
-    save_url_scan(db, decoded, risk_score, risk_level, reasons, source_type="direct_url")
+    save_url_scan(
+        db, decoded, risk_score, risk_level, reasons,
+        source_type="direct_url",
+        user_id=current_user.id if current_user else None,
+    )
     return result
 
 
 @app.post("/upload_qr")
-async def upload_qr(qr_image: UploadFile = File(...), db: Session = Depends(get_db)):
+async def upload_qr(
+    qr_image: UploadFile = File(...),
+    db: Session = Depends(get_db),
+    current_user: User | None = Depends(get_current_user_optional),
+):
     """Upload a QR code image, decode it, and check the URL for phishing."""
     if not qr_image.filename:
         raise HTTPException(status_code=400, detail="Empty filename")
@@ -561,7 +648,11 @@ async def upload_qr(qr_image: UploadFile = File(...), db: Session = Depends(get_
             risk_level = "dangerous"
             reasons = [f"Phishing detected (confidence: {result['confidence']}%)"]
 
-        save_url_scan(db, result["url"], risk_score, risk_level, reasons, source_type="qr_upload")
+        save_url_scan(
+            db, result["url"], risk_score, risk_level, reasons,
+            source_type="qr_upload",
+            user_id=current_user.id if current_user else None,
+        )
         return result
     except HTTPException:
         raise
@@ -579,6 +670,10 @@ print("✅ Scam Detector Model: Loaded")
 print("✅ Fake Job Checker Model: Loaded")
 print("✅ Database: Connected")
 print("✅ Endpoints:")
+print("   - POST /auth/signup")
+print("   - POST /auth/login")
+print("   - POST /auth/logout")
+print("   - GET  /auth/me")
 print("   - POST /analyze-scam")
 print("   - POST /check-job")
 print("   - POST /reports")
@@ -588,8 +683,8 @@ print("   - GET  /learn/lessons")
 print("   - GET  /learn/lessons/{lesson_id}")
 print("   - GET  /learn/lessons/{lesson_id}/quiz")
 print("   - POST /learn/quiz/submit")
-print("   - POST /check_url")          # added
-print("   - POST /upload_qr")          # added
+print("   - POST /check_url")
+print("   - POST /upload_qr")
 print("   - GET  /health")
 print("   - GET  /db-check")
 print("=" * 50)

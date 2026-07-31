@@ -111,4 +111,19 @@ class QuizSubmitResponse(BaseModel):
     passed: bool
     lesson_completed: bool
     results: List[QuizAnswerResult]
+# ===== AUTH =====
+class SignupRequest(BaseModel):
+    full_name: str
+    email: str
+    password: str
 
+class LoginRequest(BaseModel):
+    email: str
+    password: str
+
+class UserResponse(BaseModel):
+    id: str
+    full_name: str
+    email: str
+    role: str
+    preferred_lang: str

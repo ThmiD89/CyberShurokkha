@@ -12,6 +12,14 @@ type Lesson = {
   completed: boolean;
 };
 
+// Tier name mapping (matches your seeded tiers)
+const tierNames: Record<string, { en: string; bn: string }> = {
+  "1": { en: "Digital Basics", bn: "ডিজিটাল বেসিক্স" },
+  "2": { en: "Cyber Hygiene", bn: "সাইবার স্বাস্থ্যবিধি" },
+  "3": { en: "Threat Awareness", bn: "হুমকি সচেতনতা" },
+  "4": { en: "Advanced / Technical", bn: "উন্নত / প্রযুক্তিগত" },
+};
+
 export default function TierLessonsPage() {
   const params = useParams();
   const searchParams = useSearchParams();
@@ -23,6 +31,10 @@ export default function TierLessonsPage() {
   const [lessons, setLessons] = useState<Lesson[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
+
+  // Get the tier name based on the ID
+  const tierName = tierNames[tierId] || { en: "Lessons", bn: "পাঠ" };
+  const displayTitle = lang === "bn" ? tierName.bn : tierName.en;
 
   useEffect(() => {
     setLoading(true);
@@ -69,7 +81,7 @@ export default function TierLessonsPage() {
           className="hero-title"
           style={{ fontSize: "2rem", textAlign: "left", margin: "1rem 0 1.5rem" }}
         >
-          {lang === "bn" ? "ডিজিটাল বেসিক্স" : "Digital Basics"}
+          {displayTitle}
         </h1>
 
         {loading && <p>{lang === "bn" ? "লোড হচ্ছে..." : "Loading..."}</p>}
