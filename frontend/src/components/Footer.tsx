@@ -5,7 +5,7 @@ export default function Footer() {
         <div className="footer-brand">
           <div className="footer-logo">
             <span className="logo-icon">🛡️</span>
-            <span className="logo-text">CyberShurokkha 360</span>
+            <span className="logo-text">সাইবার সুরক্ষা ৩৬০</span>
           </div>
           <p className="footer-desc">
             AI-Powered Scam Detection & Threat Intelligence for Bangladesh
@@ -15,14 +15,15 @@ export default function Footer() {
           <div className="footer-column">
             <h4>Tools</h4>
             <a href="/scan">Scam Detector</a>
-            <a href="/qr-scan">QR Scanner</a>
-            <a href="/job-check">Job Check</a>
+            <a href="/qr-scan">URL &amp; QR Scanner</a>
+            <a href="/log-scanner">Log Scanner</a>
+            <a href="/job-check">Fraud Job Detection</a>
           </div>
           <div className="footer-column">
-            <h4>Community</h4>
+            <h4>Threat Intelligence</h4>
             <a href="/threat-map">Threat Map</a>
-            <a href="/all-reports">All Reports</a>
-            <a href="/report">Report Scam</a>
+            <a href="/all-reports">Threat Feed</a>
+            <a href="/report">Report Incident</a>
           </div>
           <div className="footer-column">
             <h4>Learn</h4>
@@ -31,7 +32,7 @@ export default function Footer() {
         </div>
       </div>
       <div className="footer-bottom">
-        <p>&copy; 2026 CyberShurokkha 360 - Built with ❤️ for Bangladesh</p>
+        <p>&copy; 2026 সাইবার সুরক্ষা ৩৬০ - Built with ❤️ for Bangladesh</p>
       </div>
     </footer>
   );

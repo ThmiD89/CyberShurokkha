@@ -1,47 +1,72 @@
 "use client";
 
-import { useTheme } from "../context/ThemeContext";
-
-const moods = [
-  { key: "default", emoji: "🪻", name: "Default", desc: "Soft Lavender" },
-  { key: "happy", emoji: "😊", name: "Happy", desc: "Bright & Energetic" },
-  { key: "calm", emoji: "🌊", name: "Calm", desc: "Peaceful & Relaxed" },
-  { key: "dark", emoji: "🌙", name: "Dark", desc: "Sleek & Mysterious" },
-  { key: "energetic", emoji: "⚡", name: "Energetic", desc: "Vibrant & Dynamic" },
-  { key: "white", emoji: "🤍", name: "White", desc: "Clean & Minimal" },
-  { key: "professional", emoji: "💼", name: "Professional", desc: "Corporate & Formal" },
-  { key: "sad", emoji: "😔", name: "Sad", desc: "Mellow & Deep" },
-];
+import { useTheme, THEMES } from "../context/ThemeContext";
 
 export default function MoodOverlay() {
-  const { showMoodOverlay, selectMood } = useTheme();
+  const { theme, selectMood, showMoodOverlay } = useTheme();
 
   if (!showMoodOverlay) return null;
 
+  // Map theme IDs to descriptions
+  const getDescription = (id: string) => {
+    const descriptions: Record<string, string> = {
+      default: "Soft Lavender",
+      dark: "Sleek & Mysterious",
+      happy: "Bright & Energetic",
+      calm: "Peaceful & Relaxed",
+      energetic: "Vibrant & Dynamic",
+      professional: "Corporate & Formal",
+      white: "Clean & Minimal",
+      sad: "Mellow & Deep",
+    };
+    return descriptions[id] || "";
+  };
+
   return (
-    <div className="mood-overlay" style={{ display: "flex" }}>
+    <div className="mood-overlay">
       <div className="mood-container">
+        <button 
+          className="mood-close-btn"
+          onClick={() => selectMood(theme)}
+          aria-label="Close mood selector"
+        >
+          ✕
+        </button>
+
         <div className="mood-header">
-          <div className="lumen-icon">
-            <span className="shield-icon">🛡️</span>
+          <div className="mood-brand">
+            <span className="mood-logo-icon">🛡️</span>
+            <span className="mood-logo-text">সাইবার সুরক্ষা ৩৬০</span>
           </div>
-          <h1 className="mood-title">CyberShurokkha 360</h1>
-          <p className="mood-subtitle">AI-Powered Scam Detection Platform</p>
+          <h1 className="mood-title">AI-Powered Scam Detection Platform</h1>
           <p className="mood-question">How are you feeling today?</p>
         </div>
 
         <div className="mood-grid">
-          {moods.map((m) => (
-            <button key={m.key} className="mood-btn" onClick={() => selectMood(m.key)}>
-              <span className="mood-emoji">{m.emoji}</span>
-              <span className="mood-name">{m.name}</span>
-              <span className="mood-desc">{m.desc}</span>
+          {THEMES.map((t) => (
+            <button
+              key={t.id}
+              className={`mood-btn ${theme === t.id ? "active" : ""}`}
+              onClick={() => selectMood(t.id)}
+            >
+              <div className="theme-swatch">
+                {t.colors.map((color, i) => (
+                  <span 
+                    key={i} 
+                    className="theme-swatch-color"
+                    style={{ backgroundColor: color }}
+                  />
+                ))}
+              </div>
+              <span className="mood-emoji">{t.emoji}</span>
+              <span className="mood-name">{t.name}</span>
+              <span className="mood-desc">{getDescription(t.id)}</span>
             </button>
           ))}
         </div>
 
         <div className="mood-footer">
-          <p className="mood-note">✨ Your mood preference will be saved ✨</p>
+          <p className="mood-note">Your mood preference will be saved</p>
         </div>
       </div>
     </div>

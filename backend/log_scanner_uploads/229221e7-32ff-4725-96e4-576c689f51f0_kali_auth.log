@@ -1,0 +1,2 @@
+Jul 30 09:00:01 kali sshd[900]: Accepted password for root from 172.16.0.9 port 22 ssh2
+Jul 30 09:05:11 kali sudo:   nodi : TTY=pts/1 ; PWD=/root ; USER=root ; COMMAND=/usr/bin/nmap -sS 10.0.0.0/24

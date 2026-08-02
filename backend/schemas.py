@@ -140,9 +140,43 @@ class ActivityStats(BaseModel):
     total_url_scans: int
     total_job_checks: int
     total_reports: int
+    total_log_scans: int
     dangerous_count: int
     lessons_completed: int
 
 class MyActivityResponse(BaseModel):
     stats: ActivityStats
     items: List[ActivityItem]
+
+
+# ===== LOG SCANNER =====
+class LogScanSummary(BaseModel):
+    id: str
+    original_filename: str
+    log_type: str
+    total_findings: int
+    overall_risk_level: str
+    uploaded_at: datetime
+
+class LogFindingSummary(BaseModel):
+    id: str
+    attack_name: Optional[str] = None
+    source_ip: Optional[str] = None
+    request_url: Optional[str] = None
+    evidence: Optional[str] = None
+    severity: Optional[str] = None
+    detection_type: Optional[str] = None
+
+class LogScanDetail(BaseModel):
+    id: str
+    original_filename: str
+    log_type: str
+    overall_risk_level: str
+    uploaded_at: datetime
+    findings: List[LogFindingSummary]
+
+class LogSolutionResponse(BaseModel):
+    attack_name: str
+    severity: str
+    fix_description: str
+    command: Optional[str] = None

@@ -8,12 +8,16 @@ import os
 import sys
 import scipy.sparse as sp
 from urllib.parse import urlparse
+from log_parser import parse_log, detect_log_type
+from log_scanner import scan_logs
+from behavior import behavior_scan
 
 from database import engine, get_db
 from models import (
     ScamAnalysis, CommunityReport, District, JobScamCheck,
     LessonTier, Lesson, QuizQuestion, UserLessonProgress,
     UrlScan, User,
+    LogScanSession, LogDetectedEvent, LogAttack, LogSolution,
 )
 from schemas import (
     ScamCheckRequest, ScamCheckResponse,
@@ -25,6 +29,7 @@ from schemas import (
     ReportListItem,
     SignupRequest, LoginRequest, UserResponse,
     ActivityItem, ActivityStats, MyActivityResponse,
+    LogScanSummary, LogFindingSummary, LogScanDetail, LogSolutionResponse,
 )
 from auth import (
     hash_password, verify_password, set_auth_cookie, clear_auth_cookie,
@@ -108,6 +113,22 @@ def save_url_scan(db: Session, url: str, risk_score: int, risk_level: str, reaso
     db.commit()
     print(f"✅ URL scan saved to database: {record.id}")
 
+LOG_UPLOAD_FOLDER = os.path.join(os.path.dirname(__file__), "log_scanner_uploads")
+os.makedirs(LOG_UPLOAD_FOLDER, exist_ok=True)
+
+# severities that count as "dangerous" for the overall scan verdict
+_DANGEROUS_SEVERITIES = {"critical", "high"}
+
+
+def _compute_overall_risk(findings: list) -> tuple[str, int]:
+    """Given a list of findings (each with a 'severity' key), returns
+    (overall_risk_level, dangerous_count)."""
+    dangerous_count = sum(1 for f in findings if f.get("severity", "").lower() in _DANGEROUS_SEVERITIES)
+    if dangerous_count > 0:
+        return "dangerous", dangerous_count
+    if len(findings) > 0:
+        return "medium", dangerous_count
+    return "safe", dangerous_count
 
 # ============================================
 # HELPERS (existing)
@@ -254,6 +275,24 @@ def get_my_activity(db: Session = Depends(get_db), current_user: User = Depends(
             created_at=r.created_at,
         ))
 
+    log_scans = (
+        db.query(LogScanSession)
+        .filter(LogScanSession.user_id == current_user.id)
+        .order_by(LogScanSession.uploaded_at.desc())
+        .all()
+    )
+
+    for l in log_scans:
+        if l.overall_risk_level == "dangerous":
+            dangerous_count += 1
+        items.append(ActivityItem(
+            type="log_scan",
+            title="Log file scan",
+            detail=f"{l.original_filename} ({l.total_findings} finding{'s' if l.total_findings != 1 else ''})",
+            risk_level=l.overall_risk_level,
+            created_at=l.uploaded_at,
+        ))    
+
     items.sort(key=lambda x: x.created_at, reverse=True)
     items = items[:50]  # cap the feed at the 50 most recent actions
 
@@ -262,6 +301,7 @@ def get_my_activity(db: Session = Depends(get_db), current_user: User = Depends(
         total_url_scans=len(url_scans),
         total_job_checks=len(job_checks),
         total_reports=len(reports),
+        total_log_scans=len(log_scans),
         dangerous_count=dangerous_count,
         lessons_completed=lessons_completed,
     )
@@ -284,6 +324,30 @@ def db_check():
         return {"database": "connected"}
     except Exception as e:
         return {"database": "error", "detail": str(e)}
+
+@app.get("/platform-stats")
+def platform_stats(db: Session = Depends(get_db)):
+    """Public aggregate stats across all users, for the homepage."""
+    total_scam_scans = db.query(ScamAnalysis).count()
+    total_url_scans = db.query(UrlScan).count()
+    total_job_checks = db.query(JobScamCheck).count()
+    total_log_scans = db.query(LogScanSession).count()
+    total_reports = db.query(CommunityReport).count()
+
+    dangerous_count = (
+        db.query(ScamAnalysis).filter(ScamAnalysis.risk_level == "dangerous").count()
+        + db.query(UrlScan).filter(UrlScan.risk_level == "dangerous").count()
+        + db.query(JobScamCheck).filter(JobScamCheck.risk_level == "dangerous").count()
+        + db.query(LogScanSession).filter(LogScanSession.overall_risk_level == "dangerous").count()
+    )
+
+    total_checks = total_scam_scans + total_url_scans + total_job_checks + total_log_scans
+
+    return {
+        "total_checks": total_checks,
+        "dangerous_count": dangerous_count,
+        "total_reports": total_reports,
+    }    
 
 # ============================================
 # MODULE 1: SCAM DETECTOR
@@ -746,6 +810,183 @@ def submit_quiz(
 
 
 # ============================================
+# MODULE 6: Log_Scanner
+# ============================================
+
+@app.post("/logs/upload")
+async def upload_log(
+    log_file: UploadFile = File(...),
+    db: Session = Depends(get_db),
+    current_user: User | None = Depends(get_current_user_optional),
+):
+    """Upload a log file, auto-detect its type, run signature + behavior
+    detection, save everything, and return the scan results."""
+
+    if not log_file.filename:
+        raise HTTPException(status_code=400, detail="Empty filename")
+
+    stored_filename = f"{uuid.uuid4()}_{log_file.filename}"
+    path = os.path.join(LOG_UPLOAD_FOLDER, stored_filename)
+
+    with open(path, "wb") as f:
+        f.write(await log_file.read())
+
+    try:
+        log_type = detect_log_type(path)
+        events = parse_log(path)
+
+        findings = []
+        findings.extend(scan_logs(events))
+        findings.extend(behavior_scan(events))
+
+        overall_risk_level, dangerous_count = _compute_overall_risk(findings)
+
+        scan = LogScanSession(
+            id=uuid.uuid4(),
+            user_id=current_user.id if current_user else None,
+            original_filename=log_file.filename,
+            stored_filename=stored_filename,
+            log_type=log_type,
+            total_findings=len(findings),
+            dangerous_findings=dangerous_count,
+            overall_risk_level=overall_risk_level,
+        )
+        db.add(scan)
+        db.flush()  # so scan.id is available for the events below
+
+        for finding in findings:
+            db.add(LogDetectedEvent(
+                id=uuid.uuid4(),
+                scan_id=scan.id,
+                attack_id=finding.get("attack_id"),
+                source_ip=finding.get("ip"),
+                request_url=finding.get("url"),
+                evidence=finding.get("evidence"),
+                severity=(finding.get("severity") or "").lower(),
+                detection_type=finding.get("type"),
+            ))
+
+        db.commit()
+        print(f"✅ Log scan saved to database: {scan.id}")
+
+        return {
+            "scan_id": str(scan.id),
+            "log_type": log_type,
+            "total_findings": len(findings),
+            "overall_risk_level": overall_risk_level,
+            "findings": findings,
+        }
+
+    except Exception as e:
+        db.rollback()
+        raise HTTPException(status_code=500, detail=f"Error scanning log: {str(e)}")
+
+@app.get("/logs/scans", response_model=list[LogScanSummary])
+def list_log_scans(db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
+    """A user's own scan history."""
+    scans = (
+        db.query(LogScanSession)
+        .filter(LogScanSession.user_id == current_user.id)
+        .order_by(LogScanSession.uploaded_at.desc())
+        .all()
+    )
+    return [
+        LogScanSummary(
+            id=str(s.id),
+            original_filename=s.original_filename,
+            log_type=s.log_type,
+            total_findings=s.total_findings,
+            overall_risk_level=s.overall_risk_level,
+            uploaded_at=s.uploaded_at,
+        )
+        for s in scans
+    ]
+
+@app.get("/logs/scans/{scan_id}", response_model=LogScanDetail)
+def get_log_scan(
+    scan_id: str,
+    db: Session = Depends(get_db),
+    current_user: User | None = Depends(get_current_user_optional),
+):
+    """Findings for one scan (the dashboard page)."""
+    scan = db.query(LogScanSession).filter(LogScanSession.id == scan_id).first()
+    if not scan:
+        raise HTTPException(status_code=404, detail="Scan not found")
+
+    if scan.user_id and (not current_user or scan.user_id != current_user.id):
+        raise HTTPException(status_code=403, detail="You don't have access to this scan")
+
+    findings = (
+        db.query(LogDetectedEvent)
+        .filter(LogDetectedEvent.scan_id == scan.id)
+        .all()
+    )
+
+    finding_summaries = []
+    for f in findings:
+        attack = db.query(LogAttack).filter(LogAttack.id == f.attack_id).first() if f.attack_id else None
+        finding_summaries.append(LogFindingSummary(
+            id=str(f.id),
+            attack_name=attack.attack_name if attack else None,
+            source_ip=f.source_ip,
+            request_url=f.request_url,
+            evidence=f.evidence,
+            severity=f.severity,
+            detection_type=f.detection_type,
+        ))
+
+    return LogScanDetail(
+        id=str(scan.id),
+        original_filename=scan.original_filename,
+        log_type=scan.log_type,
+        overall_risk_level=scan.overall_risk_level,
+        uploaded_at=scan.uploaded_at,
+        findings=finding_summaries,
+    )
+
+
+@app.get("/logs/events/{event_id}", response_model=LogFindingSummary)
+def get_log_event(event_id: str, db: Session = Depends(get_db)):
+    """Full detail of one finding."""
+    event = db.query(LogDetectedEvent).filter(LogDetectedEvent.id == event_id).first()
+    if not event:
+        raise HTTPException(status_code=404, detail="Finding not found")
+
+    attack = db.query(LogAttack).filter(LogAttack.id == event.attack_id).first() if event.attack_id else None
+
+    return LogFindingSummary(
+        id=str(event.id),
+        attack_name=attack.attack_name if attack else None,
+        source_ip=event.source_ip,
+        request_url=event.request_url,
+        evidence=event.evidence,
+        severity=event.severity,
+        detection_type=event.detection_type,
+    )
+
+
+@app.get("/logs/events/{event_id}/solution", response_model=LogSolutionResponse)
+def get_log_solution(event_id: str, db: Session = Depends(get_db)):
+    """Remediation text for one finding's attack type."""
+    event = db.query(LogDetectedEvent).filter(LogDetectedEvent.id == event_id).first()
+    if not event:
+        raise HTTPException(status_code=404, detail="Finding not found")
+    if not event.attack_id:
+        raise HTTPException(status_code=404, detail="No solution available for this finding")
+
+    attack = db.query(LogAttack).filter(LogAttack.id == event.attack_id).first()
+    solution = db.query(LogSolution).filter(LogSolution.attack_id == event.attack_id).first()
+    if not attack or not solution:
+        raise HTTPException(status_code=404, detail="No solution available for this finding")
+
+    return LogSolutionResponse(
+        attack_name=attack.attack_name,
+        severity=attack.severity,
+        fix_description=solution.fix_description,
+        command=solution.command,
+    )
+
+# ============================================
 # MODULE 2: QR / URL SCANNER (added)
 # ============================================
 
@@ -853,6 +1094,7 @@ print("   - GET  /learn/lessons/{lesson_id}/quiz")
 print("   - POST /learn/quiz/submit")
 print("   - POST /check_url")
 print("   - POST /upload_qr")
+print("   - POST /logs/upload")
 print("   - GET  /health")
 print("   - GET  /db-check")
 print("=" * 50)

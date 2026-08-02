@@ -145,3 +145,64 @@ class UserLessonProgress(Base):
     completed = Column(Boolean, nullable=False, default=False)
     quiz_score = Column(Integer, nullable=True)  # out of 4
     completed_at = Column(TIMESTAMP(timezone=True), nullable=True)
+
+class LogAttack(Base):
+    __tablename__ = "log_attacks"
+
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    attack_name = Column(String(150), nullable=False, unique=True)
+    severity = Column(String(20), nullable=False)
+
+
+class LogAttackPattern(Base):
+    __tablename__ = "log_attack_patterns"
+
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    attack_id = Column(Integer, ForeignKey("log_attacks.id", ondelete="CASCADE"), nullable=False)
+    pattern = Column(String(255), nullable=False)
+
+
+class LogBehaviorRule(Base):
+    __tablename__ = "log_behavior_rules"
+
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    attack_id = Column(Integer, ForeignKey("log_attacks.id", ondelete="CASCADE"), nullable=False)
+    attack_name = Column(String(150), nullable=False)
+    threshold = Column(Integer, nullable=False)
+
+
+class LogSolution(Base):
+    __tablename__ = "log_solutions"
+
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    attack_id = Column(Integer, ForeignKey("log_attacks.id", ondelete="CASCADE"), nullable=False)
+    fix_description = Column(Text, nullable=False)
+    command = Column(String(500))
+
+
+class LogScanSession(Base):
+    __tablename__ = "log_scan_sessions"
+
+    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    user_id = Column(UUID(as_uuid=True), ForeignKey("users.id", ondelete="SET NULL"), nullable=True)
+    original_filename = Column(String(255), nullable=False)
+    stored_filename = Column(String(255), nullable=False)
+    log_type = Column(String(20), default="unknown")
+    total_findings = Column(Integer, nullable=False, default=0)
+    dangerous_findings = Column(Integer, nullable=False, default=0)
+    overall_risk_level = Column(String(20), nullable=False, default="safe")
+    uploaded_at = Column(TIMESTAMP(timezone=True), server_default=func.now())
+
+
+class LogDetectedEvent(Base):
+    __tablename__ = "log_detected_events"
+
+    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    scan_id = Column(UUID(as_uuid=True), ForeignKey("log_scan_sessions.id", ondelete="CASCADE"), nullable=False)
+    attack_id = Column(Integer, ForeignKey("log_attacks.id", ondelete="SET NULL"), nullable=True)
+    source_ip = Column(String(100))
+    request_url = Column(String(500))
+    evidence = Column(String(500))
+    severity = Column(String(20))
+    detection_type = Column(String(20))
+    detected_at = Column(TIMESTAMP(timezone=True), server_default=func.now())
