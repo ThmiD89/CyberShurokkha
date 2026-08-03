@@ -98,6 +98,11 @@ export default function Navbar() {
                   <a href="/dashboard" className="nav-link" style={{ display: "block", padding: "0.5rem 0.75rem" }}>
                     Dashboard
                   </a>
+                  {user.role === "admin" && (
+                    <a href="/admin" className="nav-link" style={{ display: "block", padding: "0.5rem 0.75rem" }}>
+                      Admin Panel
+                    </a>
+                  )}
                   <button
                     onClick={logout}
                     style={{ display: "block", width: "100%", textAlign: "left", padding: "0.5rem 0.75rem", background: "transparent", border: "none", color: "var(--text-primary)", cursor: "pointer", fontSize: "0.88rem", fontWeight: 500 }}

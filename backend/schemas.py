@@ -68,6 +68,23 @@ class ReportListItem(BaseModel):
     status: str
     created_at: datetime
 
+# ===== ADMIN: REPORTS =====
+class AdminReportItem(BaseModel):
+    id: str
+    district_id: int
+    district_name_en: str
+    district_name_bn: str
+    category: str
+    description: str
+    screenshot_url: Optional[str] = None
+    status: str
+    reporter_name: Optional[str] = None  # None if reporter was anonymous or account deleted
+    created_at: datetime
+
+class ReportModerationResponse(BaseModel):
+    id: str
+    status: str
+
 # ===== LEARNING HUB =====
 class TierResponse(BaseModel):
     id: int
@@ -127,6 +144,20 @@ class UserResponse(BaseModel):
     email: str
     role: str
     preferred_lang: str
+
+# ===== ADMIN: USERS =====
+class AdminUserItem(BaseModel):
+    id: str
+    full_name: str
+    email: str
+    role: str
+    preferred_lang: str
+    created_at: datetime
+
+class UserDeleteResponse(BaseModel):
+    id: str
+    deleted: bool
+
 # ===== MY ACTIVITY =====
 class ActivityItem(BaseModel):
     type: str  # "scam_scan" | "url_scan" | "job_check" | "report"
@@ -147,6 +178,19 @@ class ActivityStats(BaseModel):
 class MyActivityResponse(BaseModel):
     stats: ActivityStats
     items: List[ActivityItem]
+
+# ===== ADMIN: ACTIVITY =====
+class AdminActivityItem(BaseModel):
+    type: str
+    title: str
+    detail: str
+    risk_level: Optional[str] = None
+    user_name: Optional[str] = None  # "Deleted User" if the account no longer exists
+    created_at: datetime
+
+class AdminActivityResponse(BaseModel):
+    items: List[AdminActivityItem]
+    total: int
 
 
 # ===== LOG SCANNER =====

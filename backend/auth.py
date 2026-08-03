@@ -78,3 +78,9 @@ def get_current_user_optional(request: Request, db: Session = Depends(get_db)) -
     if not user_id:
         return None
     return db.query(User).filter(User.id == user_id).first()
+
+def get_current_admin(request: Request, db: Session = Depends(get_db)) -> User:
+    user = get_current_user(request, db)
+    if user.role != "admin":
+        raise HTTPException(status_code=403, detail="Admin access required")
+    return user

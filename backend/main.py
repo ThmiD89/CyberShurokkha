@@ -30,10 +30,13 @@ from schemas import (
     SignupRequest, LoginRequest, UserResponse,
     ActivityItem, ActivityStats, MyActivityResponse,
     LogScanSummary, LogFindingSummary, LogScanDetail, LogSolutionResponse,
+    AdminReportItem, ReportModerationResponse,
+    AdminUserItem, UserDeleteResponse,
+    AdminActivityItem, AdminActivityResponse,
 )
 from auth import (
     hash_password, verify_password, set_auth_cookie, clear_auth_cookie,
-    get_current_user, get_current_user_optional,
+    get_current_user, get_current_user_optional, get_current_admin,
 )
 
 # ============================================
@@ -460,7 +463,10 @@ def threat_map_summary(db: Session = Depends(get_db)):
             District.centroid_lng,
             func.count(CommunityReport.id).label("total_reports"),
         )
-        .outerjoin(CommunityReport, CommunityReport.district_id == District.id)
+        .outerjoin(
+            CommunityReport,
+            (CommunityReport.district_id == District.id) & (CommunityReport.status == "approved"),
+        )
         .group_by(District.id)
         .all()
     )
@@ -483,6 +489,7 @@ def list_reports(district_id: int | None = None, db: Session = Depends(get_db)):
     query = (
         db.query(CommunityReport, District.name_en, District.name_bn)
         .join(District, CommunityReport.district_id == District.id)
+        .filter(CommunityReport.status == "approved")
         .order_by(CommunityReport.created_at.desc())
     )
     if district_id is not None:
@@ -504,6 +511,245 @@ def list_reports(district_id: int | None = None, db: Session = Depends(get_db)):
         for report, name_en, name_bn in results
     ]
 
+# ============================================
+# ADMIN: REPORT MODERATION
+# ============================================
+
+@app.get("/admin/reports/pending", response_model=list[AdminReportItem])
+def admin_list_reports(
+    status: str = "pending",
+    district_id: int | None = None,
+    category: str | None = None,
+    search: str | None = None,
+    date_from: str | None = None,
+    date_to: str | None = None,
+    db: Session = Depends(get_db),
+    current_admin: User = Depends(get_current_admin),
+):
+    """List reports for moderation, with filters. Defaults to pending only."""
+    query = (
+        db.query(CommunityReport, District.name_en, District.name_bn, User.full_name)
+        .join(District, CommunityReport.district_id == District.id)
+        .outerjoin(User, CommunityReport.user_id == User.id)
+    )
+
+    if status != "all":
+        query = query.filter(CommunityReport.status == status)
+    if district_id is not None:
+        query = query.filter(CommunityReport.district_id == district_id)
+    if category is not None:
+        query = query.filter(CommunityReport.category == category)
+    if search:
+        query = query.filter(CommunityReport.description.ilike(f"%{search}%"))
+    if date_from:
+        query = query.filter(CommunityReport.created_at >= date_from)
+    if date_to:
+        query = query.filter(CommunityReport.created_at <= date_to)
+
+    results = query.order_by(CommunityReport.created_at.desc()).all()
+
+    return [
+        AdminReportItem(
+            id=str(report.id),
+            district_id=report.district_id,
+            district_name_en=name_en,
+            district_name_bn=name_bn,
+            category=report.category,
+            description=report.description,
+            screenshot_url=report.screenshot_url,
+            status=report.status,
+            reporter_name=full_name,
+            created_at=report.created_at,
+        )
+        for report, name_en, name_bn, full_name in results
+    ]
+
+
+@app.post("/admin/reports/{report_id}/approve", response_model=ReportModerationResponse)
+def approve_report(
+    report_id: str,
+    db: Session = Depends(get_db),
+    current_admin: User = Depends(get_current_admin),
+):
+    report = db.query(CommunityReport).filter(CommunityReport.id == report_id).first()
+    if not report:
+        raise HTTPException(status_code=404, detail="Report not found")
+
+    report.status = "approved"
+    db.commit()
+    return ReportModerationResponse(id=str(report.id), status=report.status)
+
+
+@app.post("/admin/reports/{report_id}/reject", response_model=ReportModerationResponse)
+def reject_report(
+    report_id: str,
+    db: Session = Depends(get_db),
+    current_admin: User = Depends(get_current_admin),
+):
+    report = db.query(CommunityReport).filter(CommunityReport.id == report_id).first()
+    if not report:
+        raise HTTPException(status_code=404, detail="Report not found")
+
+    report.status = "rejected"
+    db.commit()
+    return ReportModerationResponse(id=str(report.id), status=report.status)
+
+# ============================================
+# ADMIN: USER MANAGEMENT
+# ============================================
+
+@app.get("/admin/users", response_model=list[AdminUserItem])
+def admin_list_users(
+    search: str | None = None,
+    role: str | None = None,
+    db: Session = Depends(get_db),
+    current_admin: User = Depends(get_current_admin),
+):
+    """List all users, with optional search (name/email) and role filter."""
+    query = db.query(User)
+
+    if search:
+        query = query.filter(
+            (User.full_name.ilike(f"%{search}%")) | (User.email.ilike(f"%{search}%"))
+        )
+    if role:
+        query = query.filter(User.role == role)
+
+    users = query.order_by(User.created_at.desc()).all()
+
+    return [
+        AdminUserItem(
+            id=str(u.id),
+            full_name=u.full_name,
+            email=u.email,
+            role=u.role,
+            preferred_lang=u.preferred_lang,
+            created_at=u.created_at,
+        )
+        for u in users
+    ]
+
+
+@app.delete("/admin/users/{user_id}", response_model=UserDeleteResponse)
+def admin_delete_user(
+    user_id: str,
+    db: Session = Depends(get_db),
+    current_admin: User = Depends(get_current_admin),
+):
+    """Delete a user. Their past scans/reports stay, with user_id set to NULL
+    (shown as 'Deleted User' in the admin activity view)."""
+    if str(current_admin.id) == user_id:
+        raise HTTPException(status_code=400, detail="You can't delete your own admin account.")
+
+    user = db.query(User).filter(User.id == user_id).first()
+    if not user:
+        raise HTTPException(status_code=404, detail="User not found")
+
+    db.delete(user)
+    db.commit()
+    return UserDeleteResponse(id=user_id, deleted=True)
+
+
+# ============================================
+# ADMIN: PLATFORM-WIDE ACTIVITY
+# ============================================
+
+@app.get("/admin/activity", response_model=AdminActivityResponse)
+def admin_activity(
+    module: str | None = None,  # scam_scan | url_scan | job_check | report | log_scan
+    risk_level: str | None = None,
+    search: str | None = None,
+    date_from: str | None = None,
+    date_to: str | None = None,
+    limit: int = 100,
+    db: Session = Depends(get_db),
+    current_admin: User = Depends(get_current_admin),
+):
+    """Every user's activity, for the admin dashboard. Same shape as
+    /me/activity but across the whole platform, with filters."""
+
+    def user_name_for(user_id):
+        if not user_id:
+            return "Deleted User"
+        u = db.query(User).filter(User.id == user_id).first()
+        return u.full_name if u else "Deleted User"
+
+    items = []
+
+    if module is None or module == "scam_scan":
+        for s in db.query(ScamAnalysis).all():
+            items.append(AdminActivityItem(
+                type="scam_scan",
+                title=f"Scam check ({s.channel})",
+                detail=(s.input_text[:80] + "...") if len(s.input_text) > 80 else s.input_text,
+                risk_level=s.risk_level,
+                user_name=user_name_for(s.user_id),
+                created_at=s.created_at,
+            ))
+
+    if module is None or module == "url_scan":
+        for u in db.query(UrlScan).all():
+            items.append(AdminActivityItem(
+                type="url_scan",
+                title="URL / QR check",
+                detail=u.domain or u.original_input,
+                risk_level=u.risk_level,
+                user_name=user_name_for(u.user_id),
+                created_at=u.created_at,
+            ))
+
+    if module is None or module == "job_check":
+        for j in db.query(JobScamCheck).all():
+            items.append(AdminActivityItem(
+                type="job_check",
+                title="Job posting check",
+                detail=j.job_title or "Untitled job posting",
+                risk_level=j.risk_level,
+                user_name=user_name_for(j.user_id),
+                created_at=j.created_at,
+            ))
+
+    if module is None or module == "report":
+        for r in db.query(CommunityReport).all():
+            items.append(AdminActivityItem(
+                type="report",
+                title=f"Reported: {r.category.replace('_', ' ').title()} ({r.status})",
+                detail=(r.description[:80] + "...") if len(r.description) > 80 else r.description,
+                risk_level=None,
+                user_name=user_name_for(r.user_id),
+                created_at=r.created_at,
+            ))
+
+    if module is None or module == "log_scan":
+        for l in db.query(LogScanSession).all():
+            items.append(AdminActivityItem(
+                type="log_scan",
+                title="Log file scan",
+                detail=f"{l.original_filename} ({l.total_findings} finding{'s' if l.total_findings != 1 else ''})",
+                risk_level=l.overall_risk_level,
+                user_name=user_name_for(l.user_id),
+                created_at=l.uploaded_at,
+            ))
+
+    # apply remaining filters
+    if risk_level:
+        items = [i for i in items if i.risk_level == risk_level]
+    if search:
+        search_lower = search.lower()
+        items = [
+            i for i in items
+            if search_lower in i.detail.lower() or (i.user_name and search_lower in i.user_name.lower())
+        ]
+    if date_from:
+        items = [i for i in items if str(i.created_at) >= date_from]
+    if date_to:
+        items = [i for i in items if str(i.created_at) <= date_to]
+
+    items.sort(key=lambda x: x.created_at, reverse=True)
+    total = len(items)
+    items = items[:limit]
+
+    return AdminActivityResponse(items=items, total=total)
 
 # ============================================
 # MODULE 4: FAKE JOB CHECKER
