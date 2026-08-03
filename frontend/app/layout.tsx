@@ -4,6 +4,8 @@ import "../src/styles/globals.css";
 import { ThemeProvider } from "../src/context/ThemeContext";
 import AppShell from "../src/components/AppShell";
 import { AuthProvider } from "../src/context/AuthContext";
+import UserChatWidget from "../src/components/UserChatWidget";
+
 const inter = Inter({ subsets: ["latin"] });
 
 export const metadata: Metadata = {
@@ -26,6 +28,7 @@ export default function RootLayout({
             <AppShell>{children}</AppShell>
           </AuthProvider>
         </ThemeProvider>
+        <UserChatWidget />
       </body>
     </html>
   );

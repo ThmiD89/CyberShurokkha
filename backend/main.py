@@ -12,12 +12,14 @@ from log_parser import parse_log, detect_log_type
 from log_scanner import scan_logs
 from behavior import behavior_scan
 
+
 from database import engine, get_db
 from models import (
     ScamAnalysis, CommunityReport, District, JobScamCheck,
     LessonTier, Lesson, QuizQuestion, UserLessonProgress,
     UrlScan, User,
     LogScanSession, LogDetectedEvent, LogAttack, LogSolution,
+    ContactMessage
 )
 from schemas import (
     ScamCheckRequest, ScamCheckResponse,
@@ -33,11 +35,21 @@ from schemas import (
     AdminReportItem, ReportModerationResponse,
     AdminUserItem, UserDeleteResponse,
     AdminActivityItem, AdminActivityResponse,
+    HomepageActivityResponse,
+    ModuleStats,
+    ActivityItemPublic,
+    DailyTrendItem,
+    ContactRequest, ContactResponse, ContactMessageItem,
 )
+import smtplib
+from email.mime.text import MIMEText
+from email.mime.multipart import MIMEMultipart
 from auth import (
     hash_password, verify_password, set_auth_cookie, clear_auth_cookie,
     get_current_user, get_current_user_optional, get_current_admin,
 )
+
+from chat_router import router as chat_router
 
 # ============================================
 # FASTAPI APP
@@ -52,6 +64,8 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+app.include_router(chat_router) 
 
 # ============================================
 # LOAD MODELS
@@ -350,7 +364,168 @@ def platform_stats(db: Session = Depends(get_db)):
         "total_checks": total_checks,
         "dangerous_count": dangerous_count,
         "total_reports": total_reports,
-    }    
+    }
+
+@app.get("/homepage-activity", response_model=HomepageActivityResponse)
+def homepage_activity(db: Session = Depends(get_db)):
+    # 1. Module stats
+    scam_scans = db.query(ScamAnalysis).count()
+    url_scans = db.query(UrlScan).count()
+    log_scans = db.query(LogScanSession).count()
+    job_checks = db.query(JobScamCheck).count()
+    reports = db.query(CommunityReport).count()
+
+    module_stats = ModuleStats(
+        scam_scans=scam_scans,
+        url_scans=url_scans,
+        log_scans=log_scans,
+        job_checks=job_checks,
+        reports=reports,
+    )
+
+    # 2. Recent activity (union of latest from each table)
+    # We'll query each table for the latest 20, merge, sort, take top 20
+    scam_activities = db.query(
+        ScamAnalysis.created_at,
+        ScamAnalysis.risk_level,
+        ScamAnalysis.input_text,
+        ScamAnalysis.channel,
+    ).order_by(ScamAnalysis.created_at.desc()).limit(20).all()
+
+    url_activities = db.query(
+        UrlScan.created_at,
+        UrlScan.risk_level,
+        UrlScan.original_input,
+        UrlScan.domain,
+    ).order_by(UrlScan.created_at.desc()).limit(20).all()
+
+    log_activities = db.query(
+        LogScanSession.uploaded_at.label("created_at"),
+        LogScanSession.overall_risk_level.label("risk_level"),
+        LogScanSession.original_filename,
+    ).order_by(LogScanSession.uploaded_at.desc()).limit(20).all()
+
+    job_activities = db.query(
+        JobScamCheck.created_at,
+        JobScamCheck.risk_level,
+        JobScamCheck.job_title,
+    ).order_by(JobScamCheck.created_at.desc()).limit(20).all()
+
+    report_activities = db.query(
+        CommunityReport.created_at,
+        CommunityReport.category,
+        CommunityReport.description,
+        CommunityReport.district_id,
+    ).order_by(CommunityReport.created_at.desc()).limit(20).all()
+
+    # Build a list of dicts with a common format
+    items = []
+
+    for s in scam_activities:
+        items.append({
+            "type": "scam_scan",
+            "module": "Scam Detector",
+            "summary": f"SMS/Email check ({s.channel})",
+            "risk": s.risk_level,
+            "timestamp": s.created_at,
+        })
+
+    for u in url_activities:
+        items.append({
+            "type": "url_scan",
+            "module": "URL & QR Scanner",
+            "summary": f"URL scan: {u.domain or u.original_input[:40]}",
+            "risk": u.risk_level,
+            "timestamp": u.created_at,
+        })
+
+    for l in log_activities:
+        items.append({
+            "type": "log_scan",
+            "module": "Log Scanner",
+            "summary": f"Log file: {l.original_filename}",
+            "risk": l.risk_level,
+            "timestamp": l.created_at,  # we aliased
+        })
+
+    for j in job_activities:
+        items.append({
+            "type": "job_check",
+            "module": "Fraud Job Detection",
+            "summary": f"Job posting: {j.job_title[:40] if j.job_title else 'Untitled'}",
+            "risk": j.risk_level,
+            "timestamp": j.created_at,
+        })
+
+    for r in report_activities:
+        items.append({
+            "type": "report",
+            "module": "Community Reports",
+            "summary": f"Report in {r.category.replace('_',' ').title()}: {r.description[:60]}",
+            "risk": None,  # reports don't have risk
+            "timestamp": r.created_at,
+        })
+
+    # Sort by timestamp descending and take top 20
+    items.sort(key=lambda x: x["timestamp"], reverse=True)
+    recent = items[:20]
+
+    # Convert to ActivityItemPublic
+    recent_activity = [
+        ActivityItemPublic(
+            type=item["type"],
+            module=item["module"],
+            summary=item["summary"],
+            risk=item["risk"],
+            timestamp=item["timestamp"],
+        )
+        for item in recent
+    ]
+
+    # 3. Daily trend – last 7 days (including today)
+    # We'll use raw SQL to union all created_at dates and count per day
+    # Since SQLAlchemy ORM doesn't easily UNION different tables, we'll use text()
+    # 3. Daily trend – last 7 days using ORM (safe for PostgreSQL)
+    from sqlalchemy import union_all, select, func
+    from datetime import datetime, timedelta
+
+    scam_union = select(ScamAnalysis.created_at)
+    url_union = select(UrlScan.created_at)
+    log_union = select(LogScanSession.uploaded_at.label("created_at"))
+    job_union = select(JobScamCheck.created_at)
+    report_union = select(CommunityReport.created_at)
+
+    all_activity = union_all(scam_union, url_union, log_union, job_union, report_union).subquery()
+
+    seven_days_ago = datetime.utcnow() - timedelta(days=6)
+    daily = (
+        db.query(
+            func.date(all_activity.c.created_at).label("date"),
+            func.count().label("count")
+        )
+        .filter(all_activity.c.created_at >= seven_days_ago)
+        .group_by(func.date(all_activity.c.created_at))
+        .order_by("date")
+        .all()
+    )
+
+    # Fill missing days with zero
+    today = datetime.utcnow().date()
+    all_dates = [(today - timedelta(days=i)).isoformat() for i in range(6, -1, -1)]
+    trend_dict = {str(row.date): row.count for row in daily}
+    daily_trend = [
+        DailyTrendItem(date=d, count=trend_dict.get(d, 0))
+        for d in all_dates
+    ]
+
+    # If some days are missing, fill with zero (optional)
+    # We'll fill for completeness later if needed.
+
+    return HomepageActivityResponse(
+        module_stats=module_stats,
+        recent_activity=recent_activity,
+        daily_trend=daily_trend,
+    )    
 
 # ============================================
 # MODULE 1: SCAM DETECTOR
@@ -661,6 +836,7 @@ def admin_activity(
     search: str | None = None,
     date_from: str | None = None,
     date_to: str | None = None,
+    user_id: str | None = None,
     limit: int = 100,
     db: Session = Depends(get_db),
     current_admin: User = Depends(get_current_admin),
@@ -668,16 +844,19 @@ def admin_activity(
     """Every user's activity, for the admin dashboard. Same shape as
     /me/activity but across the whole platform, with filters."""
 
-    def user_name_for(user_id):
-        if not user_id:
+    def user_name_for(uid):
+        if not uid:
             return "Deleted User"
-        u = db.query(User).filter(User.id == user_id).first()
+        u = db.query(User).filter(User.id == uid).first()
         return u.full_name if u else "Deleted User"
 
     items = []
 
     if module is None or module == "scam_scan":
-        for s in db.query(ScamAnalysis).all():
+        q = db.query(ScamAnalysis)
+        if user_id:
+            q = q.filter(ScamAnalysis.user_id == user_id)
+        for s in q.all():
             items.append(AdminActivityItem(
                 type="scam_scan",
                 title=f"Scam check ({s.channel})",
@@ -688,7 +867,10 @@ def admin_activity(
             ))
 
     if module is None or module == "url_scan":
-        for u in db.query(UrlScan).all():
+        q = db.query(UrlScan)
+        if user_id:
+            q = q.filter(UrlScan.user_id == user_id)
+        for u in q.all():
             items.append(AdminActivityItem(
                 type="url_scan",
                 title="URL / QR check",
@@ -699,7 +881,10 @@ def admin_activity(
             ))
 
     if module is None or module == "job_check":
-        for j in db.query(JobScamCheck).all():
+        q = db.query(JobScamCheck)
+        if user_id:
+            q = q.filter(JobScamCheck.user_id == user_id)
+        for j in q.all():
             items.append(AdminActivityItem(
                 type="job_check",
                 title="Job posting check",
@@ -710,7 +895,10 @@ def admin_activity(
             ))
 
     if module is None or module == "report":
-        for r in db.query(CommunityReport).all():
+        q = db.query(CommunityReport)
+        if user_id:
+            q = q.filter(CommunityReport.user_id == user_id)
+        for r in q.all():
             items.append(AdminActivityItem(
                 type="report",
                 title=f"Reported: {r.category.replace('_', ' ').title()} ({r.status})",
@@ -721,7 +909,10 @@ def admin_activity(
             ))
 
     if module is None or module == "log_scan":
-        for l in db.query(LogScanSession).all():
+        q = db.query(LogScanSession)
+        if user_id:
+            q = q.filter(LogScanSession.user_id == user_id)
+        for l in q.all():
             items.append(AdminActivityItem(
                 type="log_scan",
                 title="Log file scan",
@@ -750,6 +941,55 @@ def admin_activity(
     items = items[:limit]
 
     return AdminActivityResponse(items=items, total=total)
+
+# ============================================
+# ADMIN: Contact
+# ============================================
+
+@app.get("/admin/contact-messages", response_model=list[ContactMessageItem])
+def list_contact_messages(
+    db: Session = Depends(get_db),
+    current_admin: User = Depends(get_current_admin),
+):
+    messages = db.query(ContactMessage).order_by(ContactMessage.created_at.desc()).all()
+    return [
+        ContactMessageItem(
+            id=msg.id,
+            name=msg.name,
+            email=msg.email,
+            message=msg.message,
+            created_at=msg.created_at,
+            read=msg.read,
+            replied=msg.replied,
+        )
+        for msg in messages
+    ]
+
+@app.put("/admin/contact-messages/{message_id}/read")
+def mark_contact_read(
+    message_id: str,
+    db: Session = Depends(get_db),
+    current_admin: User = Depends(get_current_admin),
+):
+    msg = db.query(ContactMessage).filter(ContactMessage.id == message_id).first()
+    if not msg:
+        raise HTTPException(404, "Message not found")
+    msg.read = True
+    db.commit()
+    return {"status": "updated"}
+
+@app.put("/admin/contact-messages/{message_id}/replied")
+def mark_contact_replied(
+    message_id: str,
+    db: Session = Depends(get_db),
+    current_admin: User = Depends(get_current_admin),
+):
+    msg = db.query(ContactMessage).filter(ContactMessage.id == message_id).first()
+    if not msg:
+        raise HTTPException(404, "Message not found")
+    msg.replied = True
+    db.commit()
+    return {"status": "updated"}
 
 # ============================================
 # MODULE 4: FAKE JOB CHECKER
@@ -1312,6 +1552,56 @@ async def upload_qr(
         raise
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
+
+# ============================================
+# Contact
+# ============================================
+
+@app.post("/contact", response_model=ContactResponse)
+def contact(payload: ContactRequest, db: Session = Depends(get_db)):
+    # Store in database
+    message = ContactMessage(
+        id=str(uuid.uuid4()),
+        name=payload.name,
+        email=payload.email,
+        message=payload.message,
+        created_at=func.now(),
+    )
+    db.add(message)
+    db.commit()
+
+    # Optional: Send email notification
+    try:
+        SMTP_SERVER = os.getenv("SMTP_SERVER", "smtp.gmail.com")
+        SMTP_PORT = int(os.getenv("SMTP_PORT", 587))
+        SMTP_EMAIL = os.getenv("SMTP_EMAIL")
+        SMTP_PASSWORD = os.getenv("SMTP_PASSWORD")
+        CONTACT_RECIPIENT = os.getenv("CONTACT_RECIPIENT", "support@cybershurokkha.com")
+
+        if SMTP_EMAIL and SMTP_PASSWORD:
+            msg = MIMEMultipart()
+            msg["From"] = SMTP_EMAIL
+            msg["To"] = CONTACT_RECIPIENT
+            msg["Reply-To"] = payload.email
+            msg["Subject"] = f"New Contact Message from {payload.name}"
+
+            body = f"""
+            Name: {payload.name}
+            Email: {payload.email}
+            
+            Message:
+            {payload.message}
+            """
+            msg.attach(MIMEText(body, "plain"))
+
+            with smtplib.SMTP(SMTP_SERVER, SMTP_PORT) as server:
+                server.starttls()
+                server.login(SMTP_EMAIL, SMTP_PASSWORD)
+                server.send_message(msg)
+    except Exception as e:
+        print(f"Email error: {e}")
+
+    return ContactResponse(status="success", message="Message received")
 
 
 # ============================================

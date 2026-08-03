@@ -224,3 +224,47 @@ class LogSolutionResponse(BaseModel):
     severity: str
     fix_description: str
     command: Optional[str] = None
+
+# ===== LIVE FEED =====
+
+class ModuleStats(BaseModel):
+    scam_scans: int
+    url_scans: int
+    log_scans: int
+    job_checks: int
+    reports: int
+
+class ActivityItemPublic(BaseModel):
+    type: str  # "scam_scan", "url_scan", "log_scan", "job_check", "report"
+    module: str
+    summary: str
+    risk: Optional[str] = None  # "safe", "medium", "dangerous", or None for reports
+    timestamp: datetime
+
+class DailyTrendItem(BaseModel):
+    date: str  # "YYYY-MM-DD"
+    count: int
+
+class HomepageActivityResponse(BaseModel):
+    module_stats: ModuleStats
+    recent_activity: List[ActivityItemPublic]
+    daily_trend: List[DailyTrendItem]
+
+# ===== CONTACT =====
+class ContactRequest(BaseModel):
+    name: str
+    email: str
+    message: str
+
+class ContactResponse(BaseModel):
+    status: str
+    message: str
+
+class ContactMessageItem(BaseModel):
+    id: str
+    name: str
+    email: str
+    message: str
+    created_at: datetime
+    read: bool
+    replied: bool

@@ -5,17 +5,25 @@ import AdminRoute from "../../src/components/AdminRoute";
 import AdminUsersTab from "./AdminUsersTab";
 import AdminReportsTab from "./AdminReportsTab";
 import AdminActivityTab from "./AdminActivityTab";
+import AdminContactTab from "./AdminContactTab"; // <-- NEW
 
-type Tab = "users" | "reports" | "activity";
+type Tab = "users" | "reports" | "activity" | "contact"; // <-- added "contact"
 
 function AdminPageContent() {
   const [activeTab, setActiveTab] = useState<Tab>("reports");
+  const [activityUserFilter, setActivityUserFilter] = useState<{ id: string; name: string } | null>(null);
 
   const tabs: { id: Tab; label: string; icon: string }[] = [
     { id: "reports", label: "Pending Reports", icon: "fa-flag" },
     { id: "users", label: "Users", icon: "fa-users" },
     { id: "activity", label: "Activity", icon: "fa-chart-line" },
+    { id: "contact", label: "Contact Messages", icon: "fa-envelope" }, // <-- NEW
   ];
+
+  const viewUserActivity = (userId: string, userName: string) => {
+    setActivityUserFilter({ id: userId, name: userName });
+    setActiveTab("activity");
+  };
 
   return (
     <div style={{ minHeight: "100vh", background: "var(--bg-primary)", padding: "2rem 1rem" }}>
@@ -29,7 +37,7 @@ function AdminPageContent() {
             🛠️ Admin Panel
           </h1>
           <p style={{ color: "var(--text-secondary)", marginTop: "0.5rem" }}>
-            Manage reports, users, and platform activity
+            Manage reports, users, platform activity, and contact messages
           </p>
         </div>
 
@@ -59,8 +67,14 @@ function AdminPageContent() {
         </div>
 
         {activeTab === "reports" && <AdminReportsTab />}
-        {activeTab === "users" && <AdminUsersTab />}
-        {activeTab === "activity" && <AdminActivityTab />}
+        {activeTab === "users" && <AdminUsersTab onViewActivity={viewUserActivity} />}
+        {activeTab === "activity" && (
+          <AdminActivityTab
+            initialUserFilter={activityUserFilter}
+            onClearUserFilter={() => setActivityUserFilter(null)}
+          />
+        )}
+        {activeTab === "contact" && <AdminContactTab />} {/* <-- NEW */}
       </div>
     </div>
   );

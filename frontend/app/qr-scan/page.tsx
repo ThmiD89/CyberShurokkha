@@ -1,4 +1,3 @@
-// frontend/app/qr-scan/page.tsx
 "use client";
 
 import { useState, useRef, useEffect } from "react";
@@ -31,7 +30,7 @@ export default function QRScanPage() {
       const res = await fetch(`${API_BASE_URL}/check_url`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        credentials: "include", // <-- ADDED: sends the httpOnly cookie
+        credentials: "include",
         body: JSON.stringify({ url: urlToCheck }),
       });
       const data = await res.json();
@@ -72,7 +71,7 @@ export default function QRScanPage() {
       const res = await fetch(`${API_BASE_URL}/upload_qr`, {
         method: "POST",
         body: formData,
-        credentials: "include", // <-- ADDED: sends the httpOnly cookie
+        credentials: "include",
       });
       const data = await res.json();
       if (res.ok) {
@@ -87,6 +86,12 @@ export default function QRScanPage() {
   };
 
   const startCamera = async () => {
+    // Reset states
+    setResult(null);
+    setError("");
+    setLoading(false);
+    setCameraStatus("Scanning for QR codes...");
+
     try {
       const stream = await navigator.mediaDevices.getUserMedia({
         video: { facingMode: "environment" },
@@ -95,7 +100,6 @@ export default function QRScanPage() {
         videoRef.current.srcObject = stream;
         await videoRef.current.play();
         setCameraActive(true);
-        setCameraStatus("Scanning for QR codes...");
         scanningRef.current = true;
         lastScannedRef.current = "";
         requestAnimationFrame(scanFrame);
@@ -133,6 +137,8 @@ export default function QRScanPage() {
         if (code && code.data !== lastScannedRef.current) {
           lastScannedRef.current = code.data;
           setCameraStatus(`QR detected: ${code.data}`);
+          // Stop camera immediately and show loading overlay
+          stopCamera();
           callCheckUrl(code.data, true);
         }
       }
@@ -147,13 +153,17 @@ export default function QRScanPage() {
   }, []);
 
   const renderResult = () => {
-    if (loading) {
+    // Show loading spinner for URL and Upload tabs
+    if (loading && activeTab !== "camera") {
       return (
         <div style={{ textAlign: "center", padding: "2rem" }}>
           <div style={{ width: "40px", height: "40px", border: "4px solid var(--border-color)", borderTopColor: "var(--accent)", borderRadius: "50%", animation: "spin 1s linear infinite", margin: "0 auto" }}></div>
-          <p style={{ marginTop: "1rem", color: "var(--text-secondary)" }}>Analyzing...</p>
+          <p style={{ marginTop: "1rem", color: "var(--text-secondary)" }}>Analyzing…</p>
         </div>
       );
+    }
+    if (loading && activeTab === "camera") {
+      return null; // Overlay handles it
     }
 
     if (error) {
@@ -348,16 +358,86 @@ export default function QRScanPage() {
         {activeTab === "camera" && (
           <div style={{ background: "var(--card-bg)", border: "1px solid var(--card-border)", borderRadius: "1rem", padding: "1.5rem" }}>
             <div style={{ position: "relative", borderRadius: "1rem", overflow: "hidden", background: "var(--bg-secondary)", aspectRatio: "4/3" }}>
-              <video ref={videoRef} style={{ width: "100%", height: "100%", objectFit: "cover" }} playsInline autoPlay></video>
-              <canvas ref={canvasRef} style={{ display: "none" }}></canvas>
-              <div style={{ position: "absolute", top: "50%", left: "50%", transform: "translate(-50%, -50%)", width: "60%", height: "60%", border: "2px dashed rgba(255,255,255,0.3)", borderRadius: "0.5rem", pointerEvents: "none" }}></div>
+              <video ref={videoRef} style={{ width: "100%", height: "100%", objectFit: "cover" }} playsInline autoPlay />
+              <canvas ref={canvasRef} style={{ display: "none" }} />
+
+              {/* QR corner guides */}
+              <div style={{ position: "absolute", top: "50%", left: "50%", transform: "translate(-50%, -50%)", width: "60%", height: "60%", border: "2px dashed rgba(255,255,255,0.3)", borderRadius: "0.5rem", pointerEvents: "none" }} />
+
+              {/* --- LOADING OVERLAY --- */}
+              {loading && (
+                <div
+                  style={{
+                    position: "absolute",
+                    inset: 0,
+                    display: "flex",
+                    flexDirection: "column",
+                    alignItems: "center",
+                    justifyContent: "center",
+                    background: "rgba(0, 0, 0, 0.65)",
+                    backdropFilter: "blur(8px)",
+                    zIndex: 10,
+                    color: "white",
+                    textAlign: "center",
+                    padding: "2rem",
+                  }}
+                >
+                  <div
+                    style={{
+                      width: "64px",
+                      height: "64px",
+                      borderRadius: "50%",
+                      border: "4px solid rgba(255,255,255,0.15)",
+                      borderTopColor: "var(--accent, #A78BFA)",
+                      boxShadow: "0 0 30px rgba(167, 139, 250, 0.3)",
+                      animation: "spin 0.9s cubic-bezier(0.68, -0.55, 0.27, 1.55) infinite",
+                    }}
+                  />
+                  <p
+                    style={{
+                      marginTop: "1.5rem",
+                      fontSize: "1.3rem",
+                      fontWeight: 600,
+                      letterSpacing: "0.5px",
+                      textShadow: "0 2px 20px rgba(0,0,0,0.5)",
+                    }}
+                  >
+                    <span style={{ display: "inline-block", animation: "pulse 1.5s ease-in-out infinite" }}>
+                      🔍 Analyzing…
+                    </span>
+                  </p>
+                  {lastScannedRef.current && (
+                    <p
+                      style={{
+                        marginTop: "0.75rem",
+                        fontSize: "0.9rem",
+                        opacity: 0.8,
+                        fontFamily: "monospace",
+                        wordBreak: "break-all",
+                        maxWidth: "90%",
+                        background: "rgba(255,255,255,0.08)",
+                        padding: "0.4rem 1rem",
+                        borderRadius: "2rem",
+                        border: "1px solid rgba(255,255,255,0.1)",
+                        animation: "fadeIn 0.5s ease",
+                      }}
+                    >
+                      {lastScannedRef.current}
+                    </p>
+                  )}
+                </div>
+              )}
             </div>
 
             <div style={{ display: "flex", gap: "1rem", marginTop: "1rem", justifyContent: "center" }}>
               {!cameraActive ? (
-                <button onClick={startCamera} style={{ padding: "0.7rem 1.5rem", border: "none", borderRadius: "0.75rem", background: "var(--accent)", color: "white", fontWeight: 600, cursor: "pointer" }}>📷 Start Camera</button>
+                <button onClick={startCamera} style={{ padding: "0.7rem 1.5rem", border: "none", borderRadius: "0.75rem", background: "var(--accent)", color: "white", fontWeight: 600, cursor: "pointer" }} disabled={loading}>
+                  📷 Start Camera
+                </button>
               ) : (
-                <button onClick={stopCamera} style={{ padding: "0.7rem 1.5rem", border: "none", borderRadius: "0.75rem", background: "#f44336", color: "white", fontWeight: 600, cursor: "pointer" }}>⏹ Stop Camera</button>
+                <button onClick={stopCamera} style={{ padding: "0.7rem 1.5rem", border: "none", borderRadius: "0.75rem", background: "#f44336", color: "white", fontWeight: 600, cursor: "pointer" }}>
+                  ⏹ Stop Camera
+                </button>
               )}
             </div>
 
@@ -365,13 +445,14 @@ export default function QRScanPage() {
               ℹ️ {cameraStatus}
             </div>
 
+            {/* Result only when NOT loading – to avoid duplicate overlay */}
             <div style={{ marginTop: "1rem" }}>
-              {renderResult()}
+              {!loading && renderResult()}
             </div>
           </div>
         )}
 
-        {/* Results (shared) */}
+        {/* Results for URL and Upload tabs (shared) */}
         {activeTab !== "camera" && (
           <div style={{ marginTop: "2rem" }}>
             {renderResult()}
@@ -382,6 +463,14 @@ export default function QRScanPage() {
       <style>{`
         @keyframes spin {
           to { transform: rotate(360deg); }
+        }
+        @keyframes pulse {
+          0%, 100% { opacity: 1; transform: scale(1); }
+          50% { opacity: 0.6; transform: scale(0.98); }
+        }
+        @keyframes fadeIn {
+          from { opacity: 0; transform: translateY(8px); }
+          to { opacity: 1; transform: translateY(0); }
         }
       `}</style>
     </div>

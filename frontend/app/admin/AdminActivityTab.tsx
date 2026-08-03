@@ -11,6 +11,12 @@ type ActivityItem = {
   created_at: string;
 };
 
+type District = {
+  district_id: number;
+  name_en: string;
+  name_bn: string;
+};
+
 const TYPE_ICON: Record<string, string> = {
   scam_scan: "📩",
   url_scan: "🔗",
@@ -34,15 +40,33 @@ function riskColor(level: string | null) {
   return "var(--text-secondary)";
 }
 
-export default function AdminActivityTab() {
+type Props = {
+  initialUserFilter: { id: string; name: string } | null;
+  onClearUserFilter: () => void;
+};
+
+export default function AdminActivityTab({ initialUserFilter, onClearUserFilter }: Props) {
   const [items, setItems] = useState<ActivityItem[]>([]);
   const [total, setTotal] = useState(0);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
 
+  const [districts, setDistricts] = useState<District[]>([]);
   const [module, setModule] = useState("");
   const [riskLevel, setRiskLevel] = useState("");
   const [search, setSearch] = useState("");
+  const [district, setDistrict] = useState("");
+
+  // Note: district isn't sent to /admin/activity (the backend doesn't
+  // track district per-activity-item outside of reports) — it's included
+  // here as a search-assist: selecting one auto-fills the search box with
+  // that district's name so report-type activity for that area surfaces.
+  useEffect(() => {
+    fetch("http://localhost:8000/threat-map/summary")
+      .then((res) => res.json())
+      .then((data) => setDistricts(data))
+      .catch(() => {});
+  }, []);
 
   const fetchActivity = async () => {
     setLoading(true);
@@ -52,6 +76,7 @@ export default function AdminActivityTab() {
       if (module) params.append("module", module);
       if (riskLevel) params.append("risk_level", riskLevel);
       if (search) params.append("search", search);
+      if (initialUserFilter) params.append("user_id", initialUserFilter.id);
 
       const res = await fetch(`http://localhost:8000/admin/activity?${params}`, {
         credentials: "include",
@@ -72,10 +97,29 @@ export default function AdminActivityTab() {
   useEffect(() => {
     fetchActivity();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [module, riskLevel]);
+  }, [module, riskLevel, initialUserFilter]);
+
+  const handleDistrictChange = (value: string) => {
+    setDistrict(value);
+    const found = districts.find((d) => String(d.district_id) === value);
+    setSearch(found ? found.name_en : "");
+  };
 
   return (
     <div>
+      {initialUserFilter && (
+        <div style={{ display: "flex", alignItems: "center", gap: "0.6rem", padding: "0.6rem 1rem", background: "var(--accent)", borderRadius: "0.6rem", marginBottom: "1rem", color: "white", fontSize: "0.88rem" }}>
+          <i className="fas fa-user"></i>
+          Showing activity for <strong>{initialUserFilter.name}</strong>
+          <button
+            onClick={onClearUserFilter}
+            style={{ marginLeft: "auto", background: "rgba(255,255,255,0.2)", border: "none", borderRadius: "0.4rem", color: "white", padding: "0.25rem 0.7rem", cursor: "pointer", fontSize: "0.8rem" }}
+          >
+            <i className="fas fa-times"></i> Clear
+          </button>
+        </div>
+      )}
+
       {/* Filter bar */}
       <div style={{ display: "flex", gap: "0.75rem", flexWrap: "wrap", marginBottom: "1rem", alignItems: "center" }}>
         <select
@@ -102,13 +146,24 @@ export default function AdminActivityTab() {
           <option value="dangerous">Dangerous</option>
         </select>
 
+        <select
+          value={district}
+          onChange={(e) => handleDistrictChange(e.target.value)}
+          style={{ padding: "0.5rem 0.9rem", borderRadius: "0.5rem", border: "1px solid var(--card-border)", background: "var(--card-bg)", color: "var(--text-primary)" }}
+        >
+          <option value="">All Districts</option>
+          {districts.map((d) => (
+            <option key={d.district_id} value={d.district_id}>{d.name_en}</option>
+          ))}
+        </select>
+
         <input
           type="text"
           placeholder="Search by user or content..."
           value={search}
           onChange={(e) => setSearch(e.target.value)}
           onKeyDown={(e) => e.key === "Enter" && fetchActivity()}
-          style={{ flex: 1, minWidth: "200px", padding: "0.5rem 0.9rem", borderRadius: "0.5rem", border: "1px solid var(--card-border)", background: "var(--card-bg)", color: "var(--text-primary)" }}
+          style={{ flex: 1, minWidth: "180px", padding: "0.5rem 0.9rem", borderRadius: "0.5rem", border: "1px solid var(--card-border)", background: "var(--card-bg)", color: "var(--text-primary)" }}
         />
 
         <button

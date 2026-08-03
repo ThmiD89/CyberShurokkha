@@ -11,7 +11,7 @@ type AdminUser = {
   created_at: string;
 };
 
-export default function AdminUsersTab() {
+export default function AdminUsersTab({ onViewActivity }: { onViewActivity: (userId: string, userName: string) => void }) {
   const [users, setUsers] = useState<AdminUser[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
@@ -101,6 +101,10 @@ export default function AdminUsersTab() {
         </button>
       </div>
 
+      <p style={{ fontSize: "0.8rem", color: "var(--text-secondary)", marginBottom: "1rem" }}>
+        Click a user's name to see their activity.
+      </p>
+
       {loading && <p style={{ textAlign: "center", color: "var(--text-secondary)" }}>Loading...</p>}
       {error && <p style={{ textAlign: "center", color: "#dc3545" }}>{error}</p>}
       {!loading && !error && users.length === 0 && (
@@ -112,7 +116,12 @@ export default function AdminUsersTab() {
           <div key={u.id} className="card" style={{ padding: "1rem 1.25rem", display: "flex", justifyContent: "space-between", alignItems: "center", flexWrap: "wrap", gap: "0.75rem" }}>
             <div>
               <div style={{ display: "flex", alignItems: "center", gap: "0.6rem" }}>
-                <strong style={{ color: "var(--text-dark)" }}>{u.full_name}</strong>
+                <button
+                  onClick={() => onViewActivity(u.id, u.full_name)}
+                  style={{ background: "none", border: "none", padding: 0, cursor: "pointer", fontWeight: 700, fontSize: "1rem", color: "var(--accent)", textDecoration: "underline" }}
+                >
+                  {u.full_name}
+                </button>
                 {u.role === "admin" && (
                   <span style={{ padding: "0.15rem 0.6rem", borderRadius: "1rem", fontSize: "0.7rem", fontWeight: 700, background: "var(--accent)", color: "white" }}>
                     ADMIN

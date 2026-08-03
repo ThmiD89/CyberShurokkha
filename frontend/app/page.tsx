@@ -3,6 +3,7 @@
 import { useEffect, useRef, useState } from "react";
 import { useAuth } from "../src/context/AuthContext";
 import AnimatedNumber from "../src/components/AnimatedNumber";
+import HomepageActivity from "../src/components/HomepageActivity";
 
 function FadeInSection({ children, className = "" }: { children: React.ReactNode; className?: string }) {
   const ref = useRef<HTMLDivElement>(null);
@@ -267,7 +268,45 @@ export default function Home() {
           </div>
         </section>
       </FadeInSection>
-                
+
+
+      {/* ===== LIVE ACTIVITY ===== */}
+      <FadeInSection>
+        <HomepageActivity />
+      </FadeInSection>          
+
+      {/* ===== HOTLINE / CONTACT ===== */}
+      <FadeInSection>
+        <section className="hotline-section" style={{ padding: "4rem 2rem", background: "var(--bg-primary)" }}>
+          <div className="container" style={{ maxWidth: "1280px", margin: "0 auto", textAlign: "center" }}>
+            <div style={{ display: "inline-flex", alignItems: "center", gap: "0.5rem", padding: "0.5rem 1.5rem", borderRadius: "2rem", background: "var(--card-bg)", border: "1px solid var(--border-color)", marginBottom: "1.5rem" }}>
+              <span style={{ fontSize: "1.2rem" }}>🆘</span>
+              <span style={{ fontWeight: 600, color: "var(--text-dark)" }}>Need urgent help?</span>
+            </div>
+            <h2 style={{ fontSize: "2rem", fontWeight: 700, color: "var(--text-dark)", marginBottom: "1rem" }}>
+              Report a scam or get support
+            </h2>
+            <p style={{ fontSize: "1.1rem", color: "var(--text-secondary)", maxWidth: "600px", margin: "0 auto 2rem" }}>
+              If you've been targeted by a scam, call our helpline or email us – we're here to help.
+            </p>
+            <div style={{ display: "flex", justifyContent: "center", gap: "2rem", flexWrap: "wrap" }}>
+              <a href="tel:+8801533143206" style={{ display: "flex", alignItems: "center", gap: "0.75rem", padding: "0.8rem 1.8rem", background: "var(--card-bg)", border: "1px solid var(--card-border)", borderRadius: "3rem", textDecoration: "none", color: "var(--text-dark)", fontWeight: 500, boxShadow: "var(--card-shadow)", transition: "transform 0.2s" }}>
+                <span style={{ fontSize: "1.5rem" }}>📞</span>
+                <span>+880 1234-56789</span>
+              </a>
+              <a href="mailto:support@cybershurokkha.com" style={{ display: "flex", alignItems: "center", gap: "0.75rem", padding: "0.8rem 1.8rem", background: "var(--card-bg)", border: "1px solid var(--card-border)", borderRadius: "3rem", textDecoration: "none", color: "var(--text-dark)", fontWeight: 500, boxShadow: "var(--card-shadow)", transition: "transform 0.2s" }}>
+                <span style={{ fontSize: "1.5rem" }}>✉️</span>
+                <span>support@cybershurokkha.com</span>
+              </a>
+              <a href="/report" style={{ display: "flex", alignItems: "center", gap: "0.75rem", padding: "0.8rem 1.8rem", background: "var(--btn-primary)", border: "none", borderRadius: "3rem", textDecoration: "none", color: "white", fontWeight: 600, boxShadow: "var(--card-shadow)", transition: "transform 0.2s" }}>
+                <span>🚨</span>
+                <span>Report Now</span>
+              </a>
+            </div>
+          </div>
+        </section>
+      </FadeInSection>
+
       {/* ===== CLOSING CTA ===== */}
       <FadeInSection>
         <section className="closing-cta">

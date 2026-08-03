@@ -2,7 +2,8 @@ from sqlalchemy import Column, String, Integer, SmallInteger, Boolean, Text, TIM
 from sqlalchemy.dialects.postgresql import UUID, JSONB
 from sqlalchemy.sql import func
 import uuid
-
+from sqlalchemy import Column, String, Integer, SmallInteger, Boolean, Text, TIMESTAMP, ForeignKey, DateTime
+from sqlalchemy.sql import func
 from database import Base
 
 class User(Base):
@@ -206,3 +207,15 @@ class LogDetectedEvent(Base):
     severity = Column(String(20))
     detection_type = Column(String(20))
     detected_at = Column(TIMESTAMP(timezone=True), server_default=func.now())
+
+
+class ContactMessage(Base):
+    __tablename__ = "contact_messages"
+
+    id = Column(String, primary_key=True, default=lambda: str(uuid.uuid4()))
+    name = Column(String, nullable=False)
+    email = Column(String, nullable=False)
+    message = Column(Text, nullable=False)
+    created_at = Column(DateTime, default=func.now())
+    read = Column(Boolean, default=False)
+    replied = Column(Boolean, default=False)

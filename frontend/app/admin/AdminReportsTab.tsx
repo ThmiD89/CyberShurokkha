@@ -15,6 +15,12 @@ type Report = {
   created_at: string;
 };
 
+type District = {
+  district_id: number;
+  name_en: string;
+  name_bn: string;
+};
+
 const CATEGORY_LABELS: Record<string, string> = {
   sms_scam: "SMS Scam",
   phishing_url: "Phishing URL",
@@ -36,10 +42,20 @@ export default function AdminReportsTab() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
 
+  const [districts, setDistricts] = useState<District[]>([]);
+
   // Filters
   const [status, setStatus] = useState("pending");
   const [category, setCategory] = useState("");
+  const [districtId, setDistrictId] = useState("");
   const [search, setSearch] = useState("");
+
+  useEffect(() => {
+    fetch("http://localhost:8000/threat-map/summary")
+      .then((res) => res.json())
+      .then((data) => setDistricts(data))
+      .catch(() => {});
+  }, []);
 
   const fetchReports = async () => {
     setLoading(true);
@@ -47,6 +63,7 @@ export default function AdminReportsTab() {
     try {
       const params = new URLSearchParams({ status });
       if (category) params.append("category", category);
+      if (districtId) params.append("district_id", districtId);
       if (search) params.append("search", search);
 
       const res = await fetch(`http://localhost:8000/admin/reports/pending?${params}`, {
@@ -67,7 +84,7 @@ export default function AdminReportsTab() {
   useEffect(() => {
     fetchReports();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [status]);
+  }, [status, districtId]);
 
   const handleModerate = async (reportId: string, action: "approve" | "reject") => {
     try {
@@ -109,13 +126,24 @@ export default function AdminReportsTab() {
           ))}
         </select>
 
+        <select
+          value={districtId}
+          onChange={(e) => setDistrictId(e.target.value)}
+          style={{ padding: "0.5rem 0.9rem", borderRadius: "0.5rem", border: "1px solid var(--card-border)", background: "var(--card-bg)", color: "var(--text-primary)" }}
+        >
+          <option value="">All Districts</option>
+          {districts.map((d) => (
+            <option key={d.district_id} value={d.district_id}>{d.name_en}</option>
+          ))}
+        </select>
+
         <input
           type="text"
           placeholder="Search description..."
           value={search}
           onChange={(e) => setSearch(e.target.value)}
           onKeyDown={(e) => e.key === "Enter" && fetchReports()}
-          style={{ flex: 1, minWidth: "180px", padding: "0.5rem 0.9rem", borderRadius: "0.5rem", border: "1px solid var(--card-border)", background: "var(--card-bg)", color: "var(--text-primary)" }}
+          style={{ flex: 1, minWidth: "160px", padding: "0.5rem 0.9rem", borderRadius: "0.5rem", border: "1px solid var(--card-border)", background: "var(--card-bg)", color: "var(--text-primary)" }}
         />
 
         <button
