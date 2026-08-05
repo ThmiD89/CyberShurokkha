@@ -1,6 +1,8 @@
 from typing import List, Optional, Dict
 from pydantic import BaseModel
 from datetime import datetime
+from fastapi import Form
+
 
 # ===== SCAM DETECTOR =====
 class ScamCheckRequest(BaseModel):
@@ -40,6 +42,7 @@ class ReportRequest(BaseModel):
     category: str
     description: str
     screenshot_url: Optional[str] = None
+    # attachment handled as file upload separately
 
 class ReportResponse(BaseModel):
     id: str
@@ -47,6 +50,7 @@ class ReportResponse(BaseModel):
     category: str
     description: str
     status: str
+    attachment_path: Optional[str] = None
 
 
 # ===== THREAT MAP =====
@@ -57,7 +61,7 @@ class DistrictSummary(BaseModel):
     centroid_lat: Optional[str] = None
     centroid_lng: Optional[str] = None
     total_reports: int
-    
+
 class ReportListItem(BaseModel):
     id: str
     district_id: int
@@ -67,6 +71,8 @@ class ReportListItem(BaseModel):
     description: str
     status: str
     created_at: datetime
+    attachment_path: Optional[str] = None
+
 
 # ===== ADMIN: REPORTS =====
 class AdminReportItem(BaseModel):
@@ -77,13 +83,15 @@ class AdminReportItem(BaseModel):
     category: str
     description: str
     screenshot_url: Optional[str] = None
+    attachment_path: Optional[str] = None
     status: str
-    reporter_name: Optional[str] = None  # None if reporter was anonymous or account deleted
+    reporter_name: Optional[str] = None
     created_at: datetime
 
 class ReportModerationResponse(BaseModel):
     id: str
     status: str
+
 
 # ===== LEARNING HUB =====
 class TierResponse(BaseModel):
@@ -115,7 +123,7 @@ class QuizQuestionResponse(BaseModel):
 
 class QuizSubmitRequest(BaseModel):
     lesson_id: str
-    answers: Dict[str, int]  # {question_id: selected_option_index}
+    answers: Dict[str, int]
 
 class QuizAnswerResult(BaseModel):
     question_id: str
@@ -128,6 +136,8 @@ class QuizSubmitResponse(BaseModel):
     passed: bool
     lesson_completed: bool
     results: List[QuizAnswerResult]
+
+
 # ===== AUTH =====
 class SignupRequest(BaseModel):
     full_name: str
@@ -145,6 +155,7 @@ class UserResponse(BaseModel):
     role: str
     preferred_lang: str
 
+
 # ===== ADMIN: USERS =====
 class AdminUserItem(BaseModel):
     id: str
@@ -158,9 +169,10 @@ class UserDeleteResponse(BaseModel):
     id: str
     deleted: bool
 
+
 # ===== MY ACTIVITY =====
 class ActivityItem(BaseModel):
-    type: str  # "scam_scan" | "url_scan" | "job_check" | "report"
+    type: str
     title: str
     detail: str
     risk_level: Optional[str] = None
@@ -179,13 +191,15 @@ class MyActivityResponse(BaseModel):
     stats: ActivityStats
     items: List[ActivityItem]
 
+
 # ===== ADMIN: ACTIVITY =====
 class AdminActivityItem(BaseModel):
     type: str
     title: str
     detail: str
     risk_level: Optional[str] = None
-    user_name: Optional[str] = None  # "Deleted User" if the account no longer exists
+    user_name: Optional[str] = None
+    district_name: Optional[str] = None
     created_at: datetime
 
 class AdminActivityResponse(BaseModel):
@@ -225,8 +239,8 @@ class LogSolutionResponse(BaseModel):
     fix_description: str
     command: Optional[str] = None
 
-# ===== LIVE FEED =====
 
+# ===== LIVE FEED =====
 class ModuleStats(BaseModel):
     scam_scans: int
     url_scans: int
@@ -235,20 +249,21 @@ class ModuleStats(BaseModel):
     reports: int
 
 class ActivityItemPublic(BaseModel):
-    type: str  # "scam_scan", "url_scan", "log_scan", "job_check", "report"
+    type: str
     module: str
     summary: str
-    risk: Optional[str] = None  # "safe", "medium", "dangerous", or None for reports
+    risk: Optional[str] = None
     timestamp: datetime
 
 class DailyTrendItem(BaseModel):
-    date: str  # "YYYY-MM-DD"
+    date: str
     count: int
 
 class HomepageActivityResponse(BaseModel):
     module_stats: ModuleStats
     recent_activity: List[ActivityItemPublic]
     daily_trend: List[DailyTrendItem]
+
 
 # ===== CONTACT =====
 class ContactRequest(BaseModel):
@@ -268,3 +283,18 @@ class ContactMessageItem(BaseModel):
     created_at: datetime
     read: bool
     replied: bool
+
+# schemas.py
+
+class ReportFormData:
+    def __init__(
+        self,
+        district_id: int = Form(...),
+        category: str = Form(...),
+        description: str = Form(...),
+        screenshot_url: Optional[str] = Form(None),
+    ):
+        self.district_id = district_id
+        self.category = category
+        self.description = description
+        self.screenshot_url = screenshot_url

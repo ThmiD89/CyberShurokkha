@@ -13,8 +13,8 @@ export default function Footer() {
           </p>
           {/* Hotline - moved here for quick access */}
           <div style={{ marginTop: "1rem", display: "flex", flexDirection: "column", gap: "0.5rem" }}>
-            <a href="tel:+880123456789" style={{ color: "var(--text-secondary)", textDecoration: "none", fontSize: "0.85rem", display: "flex", alignItems: "center", gap: "0.5rem" }}>
-              📞 +880 1234-56789
+            <a href="tel:999" style={{ color: "var(--text-secondary)", textDecoration: "none", fontSize: "0.85rem", display: "flex", alignItems: "center", gap: "0.5rem" }}>
+              📞 999
             </a>
             <a href="mailto:support@cybershurokkha.com" style={{ color: "var(--text-secondary)", textDecoration: "none", fontSize: "0.85rem", display: "flex", alignItems: "center", gap: "0.5rem" }}>
               ✉️ support@cybershurokkha.com

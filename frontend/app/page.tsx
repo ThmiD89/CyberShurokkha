@@ -275,37 +275,183 @@ export default function Home() {
         <HomepageActivity />
       </FadeInSection>          
 
-      {/* ===== HOTLINE / CONTACT ===== */}
-      <FadeInSection>
-        <section className="hotline-section" style={{ padding: "4rem 2rem", background: "var(--bg-primary)" }}>
-          <div className="container" style={{ maxWidth: "1280px", margin: "0 auto", textAlign: "center" }}>
-            <div style={{ display: "inline-flex", alignItems: "center", gap: "0.5rem", padding: "0.5rem 1.5rem", borderRadius: "2rem", background: "var(--card-bg)", border: "1px solid var(--border-color)", marginBottom: "1.5rem" }}>
-              <span style={{ fontSize: "1.2rem" }}>🆘</span>
-              <span style={{ fontWeight: 600, color: "var(--text-dark)" }}>Need urgent help?</span>
-            </div>
-            <h2 style={{ fontSize: "2rem", fontWeight: 700, color: "var(--text-dark)", marginBottom: "1rem" }}>
-              Report a scam or get support
-            </h2>
-            <p style={{ fontSize: "1.1rem", color: "var(--text-secondary)", maxWidth: "600px", margin: "0 auto 2rem" }}>
-              If you've been targeted by a scam, call our helpline or email us – we're here to help.
-            </p>
-            <div style={{ display: "flex", justifyContent: "center", gap: "2rem", flexWrap: "wrap" }}>
-              <a href="tel:+8801533143206" style={{ display: "flex", alignItems: "center", gap: "0.75rem", padding: "0.8rem 1.8rem", background: "var(--card-bg)", border: "1px solid var(--card-border)", borderRadius: "3rem", textDecoration: "none", color: "var(--text-dark)", fontWeight: 500, boxShadow: "var(--card-shadow)", transition: "transform 0.2s" }}>
-                <span style={{ fontSize: "1.5rem" }}>📞</span>
-                <span>+880 1234-56789</span>
-              </a>
-              <a href="mailto:support@cybershurokkha.com" style={{ display: "flex", alignItems: "center", gap: "0.75rem", padding: "0.8rem 1.8rem", background: "var(--card-bg)", border: "1px solid var(--card-border)", borderRadius: "3rem", textDecoration: "none", color: "var(--text-dark)", fontWeight: 500, boxShadow: "var(--card-shadow)", transition: "transform 0.2s" }}>
-                <span style={{ fontSize: "1.5rem" }}>✉️</span>
-                <span>support@cybershurokkha.com</span>
-              </a>
-              <a href="/report" style={{ display: "flex", alignItems: "center", gap: "0.75rem", padding: "0.8rem 1.8rem", background: "var(--btn-primary)", border: "none", borderRadius: "3rem", textDecoration: "none", color: "white", fontWeight: 600, boxShadow: "var(--card-shadow)", transition: "transform 0.2s" }}>
-                <span>🚨</span>
-                <span>Report Now</span>
-              </a>
-            </div>
+{/* ===== HOTLINE / CONTACT ===== */}
+<FadeInSection>
+  <section className="hotline-section" style={{ padding: "4rem 2rem", background: "var(--bg-primary)" }}>
+    <div className="container" style={{ maxWidth: "1280px", margin: "0 auto" }}>
+
+      {/* Section Header */}
+      <div style={{ textAlign: "center", marginBottom: "2.5rem" }}>
+        <div style={{ display: "inline-flex", alignItems: "center", gap: "0.5rem", padding: "0.4rem 1.5rem", borderRadius: "2rem", background: "var(--accent)", color: "white", fontSize: "0.8rem", fontWeight: 600, letterSpacing: "0.5px", marginBottom: "1rem" }}>
+          🆘 জরুরি সহায়তা
+        </div>
+        <h2 style={{ fontSize: "2rem", fontWeight: 700, color: "var(--text-dark)", marginBottom: "0.5rem" }}>
+          Report a Scam or Get Support
+        </h2>
+        <p style={{ fontSize: "1.05rem", color: "var(--text-secondary)", maxWidth: "600px", margin: "0 auto" }}>
+          If you've been targeted by a scam, contact us or reach out to these official helplines.
+        </p>
+      </div>
+
+      {/* Two-column layout: CyberShurokkha support + Emergency numbers */}
+      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "2rem" }}>
+        {/* Left: CyberShurokkha Support */}
+        <div style={{ background: "var(--card-bg)", border: "1px solid var(--card-border)", borderRadius: "1rem", padding: "2rem", boxShadow: "var(--card-shadow)" }}>
+          <h3 style={{ fontSize: "1.1rem", fontWeight: 600, color: "var(--text-dark)", marginBottom: "1rem", display: "flex", alignItems: "center", gap: "0.5rem" }}>
+            <span>🛡️</span> CyberShurokkha 360 Support
+          </h3>
+          <div style={{ display: "flex", flexDirection: "column", gap: "0.8rem" }}>
+            <a href="tel:999" style={{ display: "flex", alignItems: "center", gap: "0.75rem", padding: "0.8rem 1rem", background: "var(--bg-secondary)", borderRadius: "0.75rem", textDecoration: "none", color: "var(--text-dark)", transition: "all 0.2s" }}>
+              <span style={{ fontSize: "1.3rem" }}>📞</span>
+              <div>
+                <div style={{ fontSize: "0.7rem", color: "var(--text-secondary)" }}>Hotline</div>
+                <div style={{ fontWeight: 600 }}>999</div>
+              </div>
+            </a>
+            <a href="mailto:support@cybershurokkha.com" style={{ display: "flex", alignItems: "center", gap: "0.75rem", padding: "0.8rem 1rem", background: "var(--bg-secondary)", borderRadius: "0.75rem", textDecoration: "none", color: "var(--text-dark)", transition: "all 0.2s" }}>
+              <span style={{ fontSize: "1.3rem" }}>✉️</span>
+              <div>
+                <div style={{ fontSize: "0.7rem", color: "var(--text-secondary)" }}>Email</div>
+                <div style={{ fontWeight: 600 }}>support@cybershurokkha.com</div>
+              </div>
+            </a>
+            <a href="/report" style={{ display: "flex", alignItems: "center", gap: "0.75rem", padding: "0.8rem 1rem", background: "var(--btn-primary)", borderRadius: "0.75rem", textDecoration: "none", color: "white", fontWeight: 600, justifyContent: "center", transition: "all 0.2s" }}>
+              <span>🚨</span> Report Now
+            </a>
           </div>
-        </section>
-      </FadeInSection>
+        </div>
+
+        {/* Right: Emergency Helplines (Bangladesh) */}
+        <div style={{ background: "var(--card-bg)", border: "1px solid var(--card-border)", borderRadius: "1rem", padding: "2rem", boxShadow: "var(--card-shadow)" }}>
+          <h3 style={{ fontSize: "1.1rem", fontWeight: 600, color: "var(--text-dark)", marginBottom: "1rem", display: "flex", alignItems: "center", gap: "0.5rem" }}>
+            <span>🇧🇩</span> জাতীয় জরুরি সেবা
+          </h3>
+          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "0.6rem" }}>
+            <a href="tel:999" style={{ display: "flex", alignItems: "center", gap: "0.6rem", padding: "0.6rem 0.8rem", background: "var(--bg-secondary)", borderRadius: "0.5rem", textDecoration: "none", color: "var(--text-dark)", fontSize: "0.85rem", transition: "all 0.2s" }}>
+              <span style={{ fontWeight: 700, color: "var(--accent)" }}>৯৯৯</span>
+              <span>জাতীয় জরুরি সেবা</span>
+            </a>
+            <a href="tel:333" style={{ display: "flex", alignItems: "center", gap: "0.6rem", padding: "0.6rem 0.8rem", background: "var(--bg-secondary)", borderRadius: "0.5rem", textDecoration: "none", color: "var(--text-dark)", fontSize: "0.85rem", transition: "all 0.2s" }}>
+              <span style={{ fontWeight: 700, color: "var(--accent)" }}>৩৩৩</span>
+              <span>জাতীয় তথ্য সেবা</span>
+            </a>
+            <a href="tel:16263" style={{ display: "flex", alignItems: "center", gap: "0.6rem", padding: "0.6rem 0.8rem", background: "var(--bg-secondary)", borderRadius: "0.5rem", textDecoration: "none", color: "var(--text-dark)", fontSize: "0.85rem", transition: "all 0.2s" }}>
+              <span style={{ fontWeight: 700, color: "var(--accent)" }}>১৬২৬৩</span>
+              <span>স্বাস্থ্য বাতায়ন</span>
+            </a>
+            <a href="tel:1098" style={{ display: "flex", alignItems: "center", gap: "0.6rem", padding: "0.6rem 0.8rem", background: "var(--bg-secondary)", borderRadius: "0.5rem", textDecoration: "none", color: "var(--text-dark)", fontSize: "0.85rem", transition: "all 0.2s" }}>
+              <span style={{ fontWeight: 700, color: "var(--accent)" }}>১০৯৮</span>
+              <span>শিশু সহায়তা</span>
+            </a>
+            <a href="tel:109" style={{ display: "flex", alignItems: "center", gap: "0.6rem", padding: "0.6rem 0.8rem", background: "var(--bg-secondary)", borderRadius: "0.5rem", textDecoration: "none", color: "var(--text-dark)", fontSize: "0.85rem", transition: "all 0.2s" }}>
+              <span style={{ fontWeight: 700, color: "var(--accent)" }}>১০৯</span>
+              <span>নারী ও শিশু নির্যাতন</span>
+            </a>
+            <a href="tel:106" style={{ display: "flex", alignItems: "center", gap: "0.6rem", padding: "0.6rem 0.8rem", background: "var(--bg-secondary)", borderRadius: "0.5rem", textDecoration: "none", color: "var(--text-dark)", fontSize: "0.85rem", transition: "all 0.2s" }}>
+              <span style={{ fontWeight: 700, color: "var(--accent)" }}>১০৬</span>
+              <span>দুদক হটলাইন</span>
+            </a>
+            <a href="tel:16430" style={{ display: "flex", alignItems: "center", gap: "0.6rem", padding: "0.6rem 0.8rem", background: "var(--bg-secondary)", borderRadius: "0.5rem", textDecoration: "none", color: "var(--text-dark)", fontSize: "0.85rem", transition: "all 0.2s" }}>
+              <span style={{ fontWeight: 700, color: "var(--accent)" }}>১৬৪৩০</span>
+              <span>জরুরি আইন সেবা</span>
+            </a>
+          </div>
+          <p style={{ fontSize: "0.7rem", color: "var(--text-secondary)", marginTop: "0.8rem", textAlign: "center" }}>
+            📍 ঢাকা, বাংলাদেশ • ২৪/৭ সেবা
+          </p>
+        </div>
+      </div>
+
+      {/* ===== POLISHED DIVIDER ===== */}
+      <div style={{
+        display: "flex",
+        alignItems: "center",
+        gap: "1rem",
+        margin: "3rem auto",
+        maxWidth: "900px",
+      }}>
+        <div style={{
+          flex: 1,
+          height: "1px",
+          background: "linear-gradient(90deg, transparent, var(--border-color))",
+        }} />
+        <span style={{
+          fontSize: "1.5rem",
+          color: "var(--accent)",
+          background: "var(--bg-primary)",
+          padding: "0 1rem",
+          fontWeight: 400,
+        }}>
+          👮
+        </span>
+        <div style={{
+          flex: 1,
+          height: "1px",
+          background: "linear-gradient(270deg, transparent, var(--border-color))",
+        }} />
+      </div>
+
+      {/* ===== CID Police Contacts ===== */}
+      <div style={{ background: "var(--card-bg)", border: "1px solid var(--card-border)", borderRadius: "1rem", padding: "2rem", boxShadow: "var(--card-shadow)" }}>
+        <div style={{ display: "flex", alignItems: "center", gap: "0.8rem", marginBottom: "1.5rem" }}>
+          <span style={{ fontSize: "1.5rem" }}>🛡️</span>
+          <h3 style={{ fontSize: "1.2rem", fontWeight: 700, color: "var(--text-dark)" }}>
+            সাইবার ক্রাইম সেল – CID
+          </h3>
+          <span style={{ fontSize: "0.7rem", color: "var(--text-secondary)", marginLeft: "auto", background: "var(--bg-secondary)", padding: "0.2rem 0.8rem", borderRadius: "2rem" }}>
+            Police Headquarters
+          </span>
+        </div>
+
+        <div style={{ overflowX: "auto" }}>
+          <table style={{ width: "100%", fontSize: "0.85rem", borderCollapse: "collapse" }}>
+            <thead>
+              <tr style={{ background: "var(--bg-secondary)", borderBottom: "2px solid var(--border-color)" }}>
+                <th style={{ padding: "0.8rem 0.5rem", textAlign: "left", fontWeight: 600 }}>Designation</th>
+                <th style={{ padding: "0.8rem 0.5rem", textAlign: "left", fontWeight: 600 }}>Phone</th>
+                <th style={{ padding: "0.8rem 0.5rem", textAlign: "left", fontWeight: 600 }}>PABX</th>
+                <th style={{ padding: "0.8rem 0.5rem", textAlign: "left", fontWeight: 600 }}>Email</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr style={{ borderBottom: "1px solid var(--border-color)" }}>
+                <td style={{ padding: "0.8rem 0.5rem" }}>SSP (Forensic Training Center)</td>
+                <td style={{ padding: "0.8rem 0.5rem" }}><a href="tel:01320010073" style={{ color: "var(--accent)" }}>01320-010073</a></td>
+                <td style={{ padding: "0.8rem 0.5rem" }}>22446, 44070061</td>
+                <td style={{ padding: "0.8rem 0.5rem" }}><a href="mailto:ssp.fti.cid@police.gov.bd" style={{ color: "var(--accent)" }}>ssp.fti.cid@police.gov.bd</a></td>
+              </tr>
+              <tr style={{ borderBottom: "1px solid var(--border-color)" }}>
+                <td style={{ padding: "0.8rem 0.5rem" }}>SSP (Cyber Training Center)</td>
+                <td style={{ padding: "0.8rem 0.5rem" }}><a href="tel:01320010069" style={{ color: "var(--accent)" }}>01320-010069</a></td>
+                <td style={{ padding: "0.8rem 0.5rem" }}>—</td>
+                <td style={{ padding: "0.8rem 0.5rem" }}>—</td>
+              </tr>
+              <tr style={{ borderBottom: "1px solid var(--border-color)" }}>
+                <td style={{ padding: "0.8rem 0.5rem" }}>SSP (Cyber Intelligence & Risk Management)</td>
+                <td style={{ padding: "0.8rem 0.5rem" }}><a href="tel:01320010081" style={{ color: "var(--accent)" }}>01320-010081</a></td>
+                <td style={{ padding: "0.8rem 0.5rem" }}>22413, 48310949</td>
+                <td style={{ padding: "0.8rem 0.5rem" }}><a href="mailto:ssp.cyirm.cid@police.gov.bd" style={{ color: "var(--accent)" }}>ssp.cyirm.cid@police.gov.bd</a></td>
+              </tr>
+              <tr>
+                <td style={{ padding: "0.8rem 0.5rem" }}>SSP (Cyber Investigation & Operations)</td>
+                <td style={{ padding: "0.8rem 0.5rem" }}><a href="tel:01320010082" style={{ color: "var(--accent)" }}>01320-010082</a></td>
+                <td style={{ padding: "0.8rem 0.5rem" }}>48321741</td>
+                <td style={{ padding: "0.8rem 0.5rem" }}><a href="mailto:ssp.cio.cid@police.gov.bd" style={{ color: "var(--accent)" }}>ssp.cio.cid@police.gov.bd</a></td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+
+        <div style={{ marginTop: "1rem", fontSize: "0.75rem", color: "var(--text-secondary)", textAlign: "center", borderTop: "1px solid var(--border-color)", paddingTop: "1rem" }}>
+          <span>🕐 সকাল ৯টা – সন্ধ্যা ৬টা (সপ্তাহের ৭ দিন)</span>
+          <span style={{ margin: "0 0.5rem" }}>•</span>
+          <span>📍 রাজারবাগ পুলিশ লাইনস, ঢাকা</span>
+        </div>
+      </div>
+
+    </div>
+  </section>
+</FadeInSection>
 
       {/* ===== CLOSING CTA ===== */}
       <FadeInSection>

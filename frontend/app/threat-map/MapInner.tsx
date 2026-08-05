@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { MapContainer, TileLayer, CircleMarker, Tooltip } from "react-leaflet";
+import { useRouter } from "next/navigation";
 import "leaflet/dist/leaflet.css";
 
 type DistrictSummary = {
@@ -15,18 +16,30 @@ type DistrictSummary = {
 
 type Report = {
   id: string;
+  district_id: number;
   category: string;
   description: string;
   created_at: string;
+  status: string;
 };
 
-export default function ThreatMapPage() {
+interface MapInnerProps {
+  filters?: { category: string; status: string };
+  showHeatmap?: boolean;
+}
+
+export default function MapInner({ filters = { category: "", status: "" }, showHeatmap = false }: MapInnerProps) {
   const [data, setData] = useState<DistrictSummary[]>([]);
   const [loading, setLoading] = useState(true);
   const [reportsByDistrict, setReportsByDistrict] = useState<Record<number, Report[]>>({});
+  const router = useRouter();
 
   useEffect(() => {
-    fetch("http://localhost:8000/threat-map/summary")
+    const params = new URLSearchParams();
+    if (filters.category) params.append("category", filters.category);
+    if (filters.status) params.append("status", filters.status);
+
+    fetch(`http://localhost:8000/threat-map/summary?${params.toString()}`)
       .then((res) => res.json())
       .then((json: DistrictSummary[]) => {
         setData(json);
@@ -37,9 +50,7 @@ export default function ThreatMapPage() {
         setLoading(false);
       });
 
-    // Fetch ALL reports once, group by district client-side
-    // (avoids firing 64 separate requests, one per district)
-    fetch("http://localhost:8000/reports")
+    fetch(`http://localhost:8000/reports?${params.toString()}`)
       .then((res) => res.json())
       .then((reports: (Report & { district_id: number })[]) => {
         const grouped: Record<number, Report[]> = {};
@@ -50,22 +61,34 @@ export default function ThreatMapPage() {
         setReportsByDistrict(grouped);
       })
       .catch((err) => console.error("Failed to load reports:", err));
-  }, []);
+  }, [filters]);
+
+  const handleMarkerClick = (districtId: number) => {
+    router.push(`/threat-map/${districtId}`);
+  };
 
   if (loading) {
-    return <div style={{ padding: "2rem" }}>Loading threat map...</div>;
+    return (
+      <div style={{ display: "flex", justifyContent: "center", alignItems: "center", height: "80vh" }}>
+        <div style={{ textAlign: "center" }}>
+          <div style={{ width: "40px", height: "40px", border: "4px solid var(--border-color)", borderTopColor: "var(--accent)", borderRadius: "50%", animation: "spin 1s linear infinite", margin: "0 auto" }} />
+          <p style={{ marginTop: "1rem", color: "var(--text-secondary)" }}>Loading map...</p>
+        </div>
+      </div>
+    );
   }
 
   return (
-    <div style={{ height: "100vh", width: "100%" }}>
+    <div style={{ height: "100vh", width: "100%", position: "relative", zIndex: 0 }}>
       <MapContainer
         center={[23.685, 90.3563]}
         zoom={7}
         style={{ height: "100%", width: "100%" }}
+        zoomControl={false}
       >
         <TileLayer
           url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
-          attribution='&copy; OpenStreetMap contributors'
+          attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
         />
 
         {data.map((d) => {
@@ -85,9 +108,12 @@ export default function ThreatMapPage() {
               center={[lat, lng]}
               radius={radius}
               pathOptions={{ color, fillColor: color, fillOpacity: 0.6 }}
+              eventHandlers={{
+                click: () => handleMarkerClick(d.district_id),
+              }}
             >
-              <Tooltip direction="top" offset={[0, -radius]} opacity={1}>
-                <div style={{ minWidth: "180px" }}>
+              <Tooltip direction="top" offset={[0, -radius]} opacity={1} permanent={false}>
+                <div style={{ minWidth: "180px", cursor: "pointer" }}>
                   <strong>{d.name_en}</strong> ({d.name_bn})
                   <br />
                   Total reports: {d.total_reports}
@@ -102,6 +128,9 @@ export default function ThreatMapPage() {
                       {reports.length > 3 && <li>+{reports.length - 3} more...</li>}
                     </ul>
                   )}
+                  <div style={{ marginTop: "4px", fontSize: "0.7rem", color: "var(--accent)" }}>
+                    Click for details →
+                  </div>
                 </div>
               </Tooltip>
             </CircleMarker>

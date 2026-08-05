@@ -214,7 +214,7 @@ html { scroll-behavior: smooth; }
     border-bottom: 1px solid var(--border-color);
     position: sticky;
     top: 0;
-    z-index: 100;
+    z-index: 1000;
 }
 
 .nav-container {

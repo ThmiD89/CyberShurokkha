@@ -2,6 +2,7 @@ from fastapi import FastAPI, Depends, HTTPException, File, UploadFile, Response
 from fastapi.middleware.cors import CORSMiddleware
 from sqlalchemy import text, func
 from sqlalchemy.orm import Session
+
 import joblib
 import uuid
 import os
@@ -11,6 +12,9 @@ from urllib.parse import urlparse
 from log_parser import parse_log, detect_log_type
 from log_scanner import scan_logs
 from behavior import behavior_scan
+import shutil
+from fastapi import UploadFile, File, Form
+from fastapi.responses import FileResponse
 
 
 from database import engine, get_db
@@ -40,6 +44,7 @@ from schemas import (
     ActivityItemPublic,
     DailyTrendItem,
     ContactRequest, ContactResponse, ContactMessageItem,
+    ReportFormData,
 )
 import smtplib
 from email.mime.text import MIMEText
@@ -132,6 +137,8 @@ def save_url_scan(db: Session, url: str, risk_score: int, risk_level: str, reaso
 
 LOG_UPLOAD_FOLDER = os.path.join(os.path.dirname(__file__), "log_scanner_uploads")
 os.makedirs(LOG_UPLOAD_FOLDER, exist_ok=True)
+REPORT_UPLOAD_FOLDER = os.path.join(os.path.dirname(__file__), "uploads", "reports")
+os.makedirs(REPORT_UPLOAD_FOLDER, exist_ok=True)
 
 # severities that count as "dangerous" for the overall scan verdict
 _DANGEROUS_SEVERITIES = {"critical", "high"}
@@ -596,19 +603,39 @@ def analyze_scam(
 # MODULE 3: REPORT A SCAM
 # ============================================
 
+# main.py
+
 @app.post("/reports", response_model=ReportResponse)
-def create_report(
-    payload: ReportRequest,
+async def create_report(
+    form_data: ReportFormData = Depends(),
+    attachment: UploadFile | None = File(None),
     db: Session = Depends(get_db),
     current_user: User | None = Depends(get_current_user_optional),
 ):
+    attachment_path = None
+    if attachment and attachment.filename:
+        # Validate file size (10MB limit)
+        if attachment.size and attachment.size > 10 * 1024 * 1024:
+            raise HTTPException(400, "File too large. Max 10MB.")
+        
+        # Generate safe filename
+        ext = os.path.splitext(attachment.filename)[1]
+        safe_filename = f"{uuid.uuid4()}{ext}"
+        file_path = os.path.join(REPORT_UPLOAD_FOLDER, safe_filename)
+        
+        # Save file
+        with open(file_path, "wb") as f:
+            shutil.copyfileobj(attachment.file, f)
+        attachment_path = file_path
+
     report = CommunityReport(
         id=uuid.uuid4(),
         user_id=current_user.id if current_user else None,
-        district_id=payload.district_id,
-        category=payload.category,
-        description=payload.description,
-        screenshot_url=payload.screenshot_url,
+        district_id=form_data.district_id,
+        category=form_data.category,
+        description=form_data.description,
+        screenshot_url=form_data.screenshot_url,
+        attachment_path=attachment_path,
         status="pending",
     )
     db.add(report)
@@ -620,6 +647,35 @@ def create_report(
         category=report.category,
         description=report.description,
         status=report.status,
+        attachment_path=report.attachment_path,
+    )
+
+# ============================================
+# REPORT ATTACHMENT DOWNLOAD
+# ============================================
+
+@app.get("/reports/{report_id}/attachment")
+def download_attachment(
+    report_id: str,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user_optional),
+):
+    report = db.query(CommunityReport).filter(CommunityReport.id == report_id).first()
+    if not report:
+        raise HTTPException(404, "Report not found")
+    if not report.attachment_path:
+        raise HTTPException(404, "No attachment found")
+    if not os.path.exists(report.attachment_path):
+        raise HTTPException(404, "File not found on server")
+
+    # Optional: Check if user is admin or report owner
+    if not current_user:
+        raise HTTPException(403, "Authentication required")
+
+    return FileResponse(
+        report.attachment_path,
+        filename=os.path.basename(report.attachment_path),
+        media_type="application/octet-stream"
     )
 
 
@@ -660,17 +716,35 @@ def threat_map_summary(db: Session = Depends(get_db)):
 
 
 @app.get("/reports", response_model=list[ReportListItem])
-def list_reports(district_id: int | None = None, db: Session = Depends(get_db)):
+def list_reports(
+    district_id: int | None = None,
+    category: str | None = None,
+    status: str | None = None,
+    search: str | None = None,
+    date_from: str | None = None,
+    date_to: str | None = None,
+    db: Session = Depends(get_db),
+):
     query = (
         db.query(CommunityReport, District.name_en, District.name_bn)
         .join(District, CommunityReport.district_id == District.id)
-        .filter(CommunityReport.status == "approved")
-        .order_by(CommunityReport.created_at.desc())
+        .filter(CommunityReport.status == "approved")  # only show approved reports
     )
+
     if district_id is not None:
         query = query.filter(CommunityReport.district_id == district_id)
+    if category:
+        query = query.filter(CommunityReport.category == category)
+    if status:
+        query = query.filter(CommunityReport.status == status)
+    if search:
+        query = query.filter(CommunityReport.description.ilike(f"%{search}%"))
+    if date_from:
+        query = query.filter(CommunityReport.created_at >= date_from)
+    if date_to:
+        query = query.filter(CommunityReport.created_at <= date_to)
 
-    results = query.all()
+    results = query.order_by(CommunityReport.created_at.desc()).all()
 
     return [
         ReportListItem(
@@ -684,6 +758,25 @@ def list_reports(district_id: int | None = None, db: Session = Depends(get_db)):
             created_at=report.created_at,
         )
         for report, name_en, name_bn in results
+    ]
+
+# ============================================
+# DISTRICTS LIST (for dropdowns)
+# ============================================
+
+@app.get("/districts", response_model=list[DistrictSummary])
+def list_districts(db: Session = Depends(get_db)):
+    districts = db.query(District).order_by(District.name_en).all()
+    return [
+        DistrictSummary(
+            district_id=d.id,
+            name_en=d.name_en,
+            name_bn=d.name_bn,
+            centroid_lat=d.centroid_lat,
+            centroid_lng=d.centroid_lng,
+            total_reports=0,
+        )
+        for d in districts
     ]
 
 # ============================================
@@ -732,6 +825,7 @@ def admin_list_reports(
             category=report.category,
             description=report.description,
             screenshot_url=report.screenshot_url,
+            attachment_path=report.attachment_path,
             status=report.status,
             reporter_name=full_name,
             created_at=report.created_at,

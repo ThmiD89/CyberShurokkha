@@ -10,6 +10,7 @@ type Report = {
   category: string;
   description: string;
   screenshot_url: string | null;
+  attachment_path: string | null;  // <-- ADDED
   status: string;
   reporter_name: string | null;
   created_at: string;
@@ -173,6 +174,20 @@ export default function AdminReportsTab() {
             </div>
 
             <p style={{ color: "var(--text-primary)", marginBottom: "0.5rem" }}>{r.description}</p>
+
+            {/* ===== ATTACHMENT DOWNLOAD ===== */}
+            {r.attachment_path && (
+              <div style={{ marginBottom: "0.5rem" }}>
+                <a
+                  href={`http://localhost:8000/reports/${r.id}/attachment`}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  style={{ color: "var(--accent)", textDecoration: "none", fontSize: "0.85rem" }}
+                >
+                  📎 Download Attachment
+                </a>
+              </div>
+            )}
 
             <p style={{ fontSize: "0.8rem", color: "var(--text-secondary)" }}>
               {r.district_name_en} · Reported by {r.reporter_name || "Deleted User"} · {new Date(r.created_at).toLocaleString()}

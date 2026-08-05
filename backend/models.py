@@ -74,7 +74,8 @@ class CommunityReport(Base):
     district_id = Column(Integer, ForeignKey("districts.id"), nullable=False)
     category = Column(String(30), nullable=False)
     description = Column(Text, nullable=False)
-    screenshot_url = Column(Text)
+    screenshot_url = Column(Text)  # keep for backward compatibility
+    attachment_path = Column(String(500))  # NEW: store file path
     status = Column(String(20), nullable=False, default="pending")
     created_at = Column(TIMESTAMP(timezone=True), server_default=func.now())
 
@@ -219,3 +220,4 @@ class ContactMessage(Base):
     created_at = Column(DateTime, default=func.now())
     read = Column(Boolean, default=False)
     replied = Column(Boolean, default=False)
+
