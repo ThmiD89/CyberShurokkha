@@ -2,9 +2,9 @@ import type { Metadata } from "next";
 import { Inter } from "next/font/google";
 import "../src/styles/globals.css";
 import { ThemeProvider } from "../src/context/ThemeContext";
-import AppShell from "../src/components/AppShell";
+import AppShell from "../src/components/layout/AppShell";
 import { AuthProvider } from "../src/context/AuthContext";
-import UserChatWidget from "../src/components/UserChatWidget";
+import UserChatWidget from "../src/components/widgets/UserChatWidget";
 
 const inter = Inter({ subsets: ["latin"] });
 

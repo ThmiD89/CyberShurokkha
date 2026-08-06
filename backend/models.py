@@ -15,6 +15,11 @@ class User(Base):
     password_hash = Column(String(255), nullable=False)
     role = Column(String(20), nullable=False, default="citizen")
     preferred_lang = Column(String(5), nullable=False, default="bn")
+    email_verified = Column(Boolean, default=False)
+    phone_number = Column(String(20), nullable=True)
+    district_id = Column(Integer, ForeignKey("districts.id"), nullable=True)
+    occupation = Column(String(100), nullable=True)
+    terms_accepted = Column(Boolean, nullable=False, default=False)
     created_at = Column(TIMESTAMP(timezone=True), server_default=func.now())
     updated_at = Column(TIMESTAMP(timezone=True), server_default=func.now())
 
@@ -221,3 +226,23 @@ class ContactMessage(Base):
     read = Column(Boolean, default=False)
     replied = Column(Boolean, default=False)
 
+class PasswordResetToken(Base):
+    __tablename__ = "password_reset_tokens"
+
+    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    user_id = Column(UUID(as_uuid=True), ForeignKey("users.id", ondelete="CASCADE"), nullable=False)
+    token = Column(String(255), nullable=False, unique=True)
+    expires_at = Column(DateTime, nullable=False)
+    used = Column(Boolean, default=False)
+    created_at = Column(DateTime, server_default=func.now())
+
+
+class EmailVerification(Base):
+    __tablename__ = "email_verifications"
+
+    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    user_id = Column(UUID(as_uuid=True), ForeignKey("users.id", ondelete="CASCADE"), nullable=False)
+    otp = Column(String(255), nullable=False)  # 6-digit code
+    expires_at = Column(DateTime, nullable=False)
+    verified = Column(Boolean, default=False)
+    created_at = Column(DateTime, server_default=func.now())

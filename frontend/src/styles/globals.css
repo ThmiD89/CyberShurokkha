@@ -248,7 +248,7 @@ html { scroll-behavior: smooth; }
 
 .nav-links {
     display: flex;
-    gap: 1rem;
+    gap: 0.5rem;
     flex-wrap: nowrap;
     align-items: center;
     flex: 1;
@@ -1208,4 +1208,145 @@ html { scroll-behavior: smooth; }
   .footer-links {
     grid-template-columns: repeat(2, 1fr);
   }
+}
+
+/* ============================================
+   NAVBAR — VISUAL POLISH (sizes untouched)
+   ============================================ */
+
+/* Gradient glow border instead of flat line */
+.navbar {
+    border-bottom: 1px solid transparent;
+    background-image:
+        linear-gradient(var(--bg-nav), var(--bg-nav)),
+        linear-gradient(90deg, var(--accent), #667eea, var(--accent));
+    background-origin: border-box;
+    background-clip: padding-box, border-box;
+    box-shadow: 0 4px 24px rgba(0, 0, 0, 0.08);
+    transition: box-shadow 0.3s ease;
+}
+.navbar:hover {
+    box-shadow: 0 6px 32px rgba(0, 0, 0, 0.12), 0 0 24px -8px var(--accent);
+}
+
+/* Logo: subtle shimmer, no size change */
+.logo-text {
+    background-size: 200% 200%;
+    animation: shimmerLogo 5s ease-in-out infinite;
+}
+@keyframes shimmerLogo {
+    0%, 100% { background-position: 0% 50%; }
+    50% { background-position: 100% 50%; }
+}
+.logo-icon {
+    filter: drop-shadow(0 0 6px var(--accent));
+}
+
+/* Nav links: animated underline instead of just color change */
+.nav-link {
+    position: relative;
+    padding-bottom: 2px;
+}
+.nav-link::after {
+    content: "";
+    position: absolute;
+    left: 0;
+    bottom: -4px;
+    width: 0;
+    height: 2px;
+    background: var(--accent);
+    border-radius: 2px;
+    transition: width 0.25s ease;
+}
+.nav-link:hover::after,
+.nav-link.active::after {
+    width: 100%;
+}
+.nav-link.active {
+    color: var(--accent);
+    font-weight: 600;
+}
+
+/* Dropdown chevron rotates on open */
+.nav-link .chevron {
+    display: inline-block;
+    transition: transform 0.25s ease;
+}
+.nav-link[aria-expanded="true"] .chevron {
+    transform: rotate(180deg);
+}
+
+/* Appearance toggle: give it real presence */
+.mood-changer-btn {
+    border: 1px solid var(--border-color);
+    box-shadow: 0 1px 4px rgba(0, 0, 0, 0.06);
+}
+.mood-changer-btn:hover {
+    box-shadow: 0 4px 14px -2px var(--accent);
+    border-color: var(--accent);
+}
+.theme-preview-dot {
+    box-shadow: 0 0 6px currentColor;
+}
+
+/* User menu avatar/name: give it a pill */
+.nav-actions > .user-menu {
+    display: flex;
+    align-items: center;
+    gap: 0.4rem;
+    padding: 0.3rem 0.7rem;
+    border-radius: 2rem;
+    transition: background 0.25s ease;
+}
+.nav-actions > .user-menu:hover {
+    background: var(--btn-secondary);
+}
+
+/* Sticky navbar gains depth once page is scrolled */
+.navbar.scrolled {
+    box-shadow: 0 6px 28px rgba(0, 0, 0, 0.14);
+}
+
+/* Entrance animation on load */
+.navbar {
+    animation: navSlideDown 0.5s cubic-bezier(0.22, 1, 0.36, 1);
+}
+@keyframes navSlideDown {
+    from { transform: translateY(-100%); opacity: 0; }
+    to { transform: translateY(0); opacity: 1; }
+}
+
+/* ============================================
+   NAV LINKS — BOXED / PILL STYLE
+   ============================================ */
+/* Pill-style boxes around nav links — always visible */
+.nav-link {
+    padding: 0.4rem 0.9rem;
+    border-radius: 2rem;
+    border: 1px solid var(--border-color);
+    background: var(--btn-secondary);
+}
+
+.nav-link:hover {
+    background: var(--accent);
+    color: white !important;
+    border-color: var(--accent);
+}
+
+.nav-link.active {
+    background: var(--accent);
+    color: white !important;
+    border-color: var(--accent);
+}
+
+.nav-link.active::after {
+    display: none;
+}
+
+.nav-logo img {
+    display: block;
+    transition: transform 0.3s ease;
+}
+.nav-logo:hover img {
+    transform: scale(1.03);
 }

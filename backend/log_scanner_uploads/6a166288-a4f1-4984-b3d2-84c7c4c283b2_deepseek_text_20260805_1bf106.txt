@@ -1,0 +1,28 @@
+Aug 3 10:15:23 server sshd[1234]: Failed password for root from 192.168.1.100 port 22
+Aug 3 10:15:24 server sshd[1234]: Failed password for root from 192.168.1.100 port 22
+Aug 3 10:15:25 server sshd[1234]: Failed password for root from 192.168.1.100 port 22
+Aug 3 10:15:26 server sshd[1234]: Failed password for root from 192.168.1.100 port 22
+Aug 3 10:15:27 server sshd[1234]: Failed password for root from 192.168.1.100 port 22
+Aug 3 10:15:28 server sshd[1234]: Failed password for root from 192.168.1.100 port 22
+Aug 3 10:15:29 server sshd[1234]: Failed password for root from 192.168.1.100 port 22
+Aug 3 10:15:30 server sshd[1234]: Failed password for root from 192.168.1.100 port 22
+Aug 3 10:15:31 server sshd[1234]: Failed password for root from 192.168.1.100 port 22
+Aug 3 10:15:32 server sshd[1234]: Failed password for root from 192.168.1.100 port 22
+Aug 3 10:15:33 server sshd[1234]: Accepted password for root from 192.168.1.100 port 22
+Aug 3 10:16:00 server sshd[1235]: Invalid user admin from 192.168.1.101 port 22
+Aug 3 10:16:01 server sshd[1235]: Failed password for invalid user admin from 192.168.1.101 port 22
+Aug 3 10:16:02 server sshd[1235]: Failed password for invalid user admin from 192.168.1.101 port 22
+Aug 3 10:16:03 server sshd[1235]: Failed password for invalid user admin from 192.168.1.101 port 22
+Aug 3 10:16:04 server sshd[1235]: Failed password for invalid user admin from 192.168.1.101 port 22
+Aug 3 10:16:05 server sshd[1235]: Failed password for invalid user admin from 192.168.1.101 port 22
+Aug 3 10:16:06 server sshd[1235]: Failed password for invalid user admin from 192.168.1.101 port 22
+Aug 3 10:16:07 server sshd[1235]: Failed password for invalid user admin from 192.168.1.101 port 22
+Aug 3 10:16:08 server sshd[1235]: Failed password for invalid user admin from 192.168.1.101 port 22
+Aug 3 10:16:09 server sshd[1235]: Failed password for invalid user admin from 192.168.1.101 port 22
+Aug 3 10:16:10 server sshd[1235]: Failed password for invalid user admin from 192.168.1.101 port 22
+Aug 3 10:20:00 server sshd[1236]: Failed password for ubuntu from 192.168.1.102 port 22
+Aug 3 10:20:01 server sshd[1236]: Failed password for ubuntu from 192.168.1.102 port 22
+Aug 3 10:20:02 server sshd[1236]: Failed password for ubuntu from 192.168.1.102 port 22
+Aug 3 10:20:03 server sshd[1236]: Failed password for ubuntu from 192.168.1.102 port 22
+Aug 3 10:20:04 server sshd[1236]: Failed password for ubuntu from 192.168.1.102 port 22
+Aug 3 10:20:05 server sshd[1236]: Failed password for ubuntu from 192.168.1.102 port 22

@@ -1,4 +1,5 @@
 "use client";
+
 import React, { createContext, useContext, useState, useEffect, ReactNode } from "react";
 
 type User = {
@@ -7,14 +8,16 @@ type User = {
   email: string;
   role: string;
   preferred_lang: string;
+  email_verified: boolean;
 };
 
 type AuthContextType = {
   user: User | null;
   loading: boolean;
-  login: (email: string, password: string) => Promise<{ ok: boolean; error?: string }>;
-  signup: (full_name: string, email: string, password: string) => Promise<{ ok: boolean; error?: string }>;
+  login: (email: string, password: string, recaptchaToken: string) => Promise<{ ok: boolean; error?: string; user?: User }>;
+  signup: (full_name: string, email: string, password: string, recaptchaToken: string) => Promise<{ ok: boolean; error?: string }>;
   logout: () => Promise<void>;
+  fetchMe: () => Promise<void>;
 };
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -43,33 +46,49 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     fetchMe();
   }, []);
 
-  const login = async (email: string, password: string) => {
+  const formatError = (detail: any): string => {
+    if (!detail) return "An error occurred.";
+    if (typeof detail === "string") return detail;
+    if (Array.isArray(detail)) {
+      return detail.map((err: any) => err.msg || JSON.stringify(err)).join(" • ");
+    }
+    if (typeof detail === "object") {
+      return JSON.stringify(detail);
+    }
+    return String(detail);
+  };
+
+  const login = async (email: string, password: string, recaptchaToken: string) => {
     try {
       const res = await fetch(`${API_BASE_URL}/auth/login`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         credentials: "include",
-        body: JSON.stringify({ email, password }),
+        body: JSON.stringify({ email, password, recaptcha_token: recaptchaToken }),
       });
       const data = await res.json();
-      if (!res.ok) return { ok: false, error: data.detail || "Login failed" };
+      if (!res.ok) {
+        return { ok: false, error: formatError(data.detail) };
+      }
       setUser(data);
-      return { ok: true };
+      return { ok: true, user: data }; // ← Return user data
     } catch {
       return { ok: false, error: "Failed to connect to the server." };
     }
   };
 
-  const signup = async (full_name: string, email: string, password: string) => {
+  const signup = async (full_name: string, email: string, password: string, recaptchaToken: string) => {
     try {
       const res = await fetch(`${API_BASE_URL}/auth/signup`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         credentials: "include",
-        body: JSON.stringify({ full_name, email, password }),
+        body: JSON.stringify({ full_name, email, password, recaptcha_token: recaptchaToken }),
       });
       const data = await res.json();
-      if (!res.ok) return { ok: false, error: data.detail || "Signup failed" };
+      if (!res.ok) {
+        return { ok: false, error: formatError(data.detail) };
+      }
       setUser(data);
       return { ok: true };
     } catch {
@@ -83,7 +102,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   };
 
   return (
-    <AuthContext.Provider value={{ user, loading, login, signup, logout }}>
+    <AuthContext.Provider value={{ user, loading, login, signup, logout, fetchMe }}>
       {children}
     </AuthContext.Provider>
   );

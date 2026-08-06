@@ -139,14 +139,53 @@ class QuizSubmitResponse(BaseModel):
 
 
 # ===== AUTH =====
+
+import re
+from pydantic import field_validator
+
 class SignupRequest(BaseModel):
     full_name: str
     email: str
     password: str
+    recaptcha_token: str
+
+    @field_validator("password")
+    @classmethod
+    def validate_password_strength(cls, v: str) -> str:
+        if len(v) < 8:
+            raise ValueError("Password must be at least 8 characters long.")
+        if not re.search(r"[A-Z]", v):
+            raise ValueError("Password must contain at least one uppercase letter.")
+        if not re.search(r"[a-z]", v):
+            raise ValueError("Password must contain at least one lowercase letter.")
+        if not re.search(r"\d", v):
+            raise ValueError("Password must contain at least one number.")
+        if not re.search(r"[!@#$%^&*(),.?\":{}|<>]", v):
+            raise ValueError("Password must contain at least one special character.")
+        return v
+
+    @field_validator("email")
+    @classmethod
+    def validate_email_format(cls, v: str) -> str:
+        pattern = r"^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$"
+        if not re.match(pattern, v):
+            raise ValueError("Invalid email address format.")
+        return v.lower().strip()
+
+    @field_validator("full_name")
+    @classmethod
+    def validate_full_name(cls, v: str) -> str:
+        v = v.strip()
+        if len(v) < 2:
+            raise ValueError("Full name must be at least 2 characters.")
+        if len(v) > 120:
+            raise ValueError("Full name is too long.")
+        return v
 
 class LoginRequest(BaseModel):
     email: str
     password: str
+    recaptcha_token: str
 
 class UserResponse(BaseModel):
     id: str
@@ -154,6 +193,7 @@ class UserResponse(BaseModel):
     email: str
     role: str
     preferred_lang: str
+    email_verified: bool
 
 
 # ===== ADMIN: USERS =====
@@ -298,3 +338,26 @@ class ReportFormData:
         self.category = category
         self.description = description
         self.screenshot_url = screenshot_url
+
+
+#Forgot  pass
+
+class ForgotPasswordRequest(BaseModel):
+    email: str
+
+class ResetPasswordRequest(BaseModel):
+    token: str
+    new_password: str
+
+#OTP
+
+class SendOTPRequest(BaseModel):
+    email: str
+
+class VerifyOTPRequest(BaseModel):
+    email: str
+    otp: str
+
+class VerifyOTPResponse(BaseModel):
+    verified: bool
+    message: str

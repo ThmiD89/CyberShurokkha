@@ -1,6 +1,13 @@
 "use client";
 
 import { useState, useEffect } from "react";
+import PageContainer from "../../src/components/common/PageContainer";
+import BackHome from "../../src/components/common/BackHome";
+import PageHero from "../../src/components/common/PageHero";
+import StatsRow from "../../src/components/common/StatsRow";
+import GlassCard from "../../src/components/ui/Card";
+import Button from "../../src/components/ui/Button";
+import Badge from "../../src/components/ui/Badge";
 
 interface Report {
   id: string;
@@ -45,6 +52,12 @@ const statusColors: Record<string, string> = {
   approved: "#4CAF50",
   pending: "#ff9800",
   rejected: "#dc3545",
+};
+
+const statusLabels: Record<string, string> = {
+  approved: "Approved",
+  pending: "Pending Review",
+  rejected: "Rejected",
 };
 
 export default function AllReportsPage() {
@@ -116,7 +129,6 @@ export default function AllReportsPage() {
     setTimeout(fetchReports, 100);
   };
 
-  // Format date for display
   const formatDate = (dateString: string) => {
     return new Date(dateString).toLocaleString("en-US", {
       year: "numeric",
@@ -127,59 +139,64 @@ export default function AllReportsPage() {
     });
   };
 
-  // Get today's date for default range
-  const today = new Date();
-  const sevenDaysAgo = new Date(today);
-  sevenDaysAgo.setDate(today.getDate() - 7);
+  // ─── Stats for StatsRow ──────────────────────────────
+  const stats = [
+    {
+      label: "Total Reports",
+      value: reports.length,
+      icon: "📋",
+    },
+    {
+      label: "Approved",
+      value: reports.filter((r) => r.status === "approved").length,
+      icon: "✅",
+    },
+    {
+      label: "Pending Review",
+      value: reports.filter((r) => r.status === "pending").length,
+      icon: "⏳",
+    },
+    {
+      label: "High Risk",
+      value: reports.filter((r) => r.category === "phishing_url" || r.category === "scam_call").length,
+      icon: "🚨",
+    },
+  ];
 
   return (
-    <div style={{ maxWidth: "1200px", margin: "0 auto", padding: "4rem 1.5rem", minHeight: "70vh" }}>
-      {/* Header */}
-      <div style={{ textAlign: "center", marginBottom: "2.5rem" }}>
-        <div style={{ display: "inline-block", padding: "0.3rem 1.2rem", borderRadius: "2rem", background: "var(--accent)", color: "white", fontSize: "0.8rem", fontWeight: 600, letterSpacing: "0.5px", marginBottom: "0.8rem" }}>
-          📡 Live Intelligence
-        </div>
-        <h1 style={{ fontSize: "2.8rem", fontWeight: 700, color: "var(--text-dark)", marginBottom: "0.3rem" }}>
-          🛡️ Threat Feed
-        </h1>
-        <p style={{ fontSize: "1.1rem", color: "var(--text-secondary)" }}>
-          {reports.length} verified reports across Bangladesh
-        </p>
-        {filters.date_from && filters.date_to && (
-          <p style={{ fontSize: "0.9rem", color: "var(--text-secondary)", marginTop: "0.3rem" }}>
-            📅 Showing reports from <strong>{new Date(filters.date_from).toLocaleDateString()}</strong> to <strong>{new Date(filters.date_to).toLocaleDateString()}</strong>
-          </p>
-        )}
-        {filters.date_from && !filters.date_to && (
-          <p style={{ fontSize: "0.9rem", color: "var(--text-secondary)", marginTop: "0.3rem" }}>
-            📅 Showing reports from <strong>{new Date(filters.date_from).toLocaleDateString()}</strong>
-          </p>
-        )}
-        {!filters.date_from && filters.date_to && (
-          <p style={{ fontSize: "0.9rem", color: "var(--text-secondary)", marginTop: "0.3rem" }}>
-            📅 Showing reports up to <strong>{new Date(filters.date_to).toLocaleDateString()}</strong>
-          </p>
-        )}
-      </div>
+    <PageContainer>
+      <BackHome />
 
-      {/* ===== FILTER BAR ===== */}
-      <div style={{
-        background: "var(--card-bg)",
-        padding: "1.8rem",
-        borderRadius: "1.2rem",
-        border: "1px solid var(--card-border)",
-        boxShadow: "var(--card-shadow)",
-        marginBottom: "2rem",
-      }}>
-        <div style={{
-          display: "grid",
-          gridTemplateColumns: "repeat(auto-fit, minmax(180px, 1fr))",
-          gap: "1rem",
-          alignItems: "end",
-        }}>
+      <PageHero
+        badge="📡 Live Threat Intelligence"
+        icon="🛡️"
+        title="Threat Feed"
+        subtitle="Verified community reports across Bangladesh"
+      />
+
+      {/* Stats */}
+      <StatsRow stats={stats} />
+
+      {/* ─── Filters ─── */}
+      <GlassCard style={{ marginBottom: "2rem" }}>
+        <div
+          style={{
+            display: "grid",
+            gridTemplateColumns: "repeat(auto-fit, minmax(180px, 1fr))",
+            gap: "1rem",
+          }}
+        >
           {/* District */}
           <div>
-            <label style={{ display: "block", fontSize: "0.8rem", fontWeight: 600, color: "var(--text-secondary)", marginBottom: "0.3rem" }}>
+            <label
+              style={{
+                display: "block",
+                fontSize: "0.8rem",
+                fontWeight: 600,
+                color: "var(--text-secondary)",
+                marginBottom: "0.3rem",
+              }}
+            >
               District
             </label>
             <select
@@ -187,12 +204,12 @@ export default function AllReportsPage() {
               onChange={(e) => handleFilterChange("district_id", e.target.value)}
               style={{
                 width: "100%",
-                padding: "0.7rem 0.9rem",
+                padding: "0.6rem 0.9rem",
                 borderRadius: "0.6rem",
                 border: "1px solid var(--border-color)",
                 background: "var(--bg-secondary)",
                 color: "var(--text-primary)",
-                fontSize: "0.95rem",
+                fontSize: "0.9rem",
               }}
             >
               <option value="">All Districts</option>
@@ -206,7 +223,15 @@ export default function AllReportsPage() {
 
           {/* Category */}
           <div>
-            <label style={{ display: "block", fontSize: "0.8rem", fontWeight: 600, color: "var(--text-secondary)", marginBottom: "0.3rem" }}>
+            <label
+              style={{
+                display: "block",
+                fontSize: "0.8rem",
+                fontWeight: 600,
+                color: "var(--text-secondary)",
+                marginBottom: "0.3rem",
+              }}
+            >
               Category
             </label>
             <select
@@ -214,24 +239,34 @@ export default function AllReportsPage() {
               onChange={(e) => handleFilterChange("category", e.target.value)}
               style={{
                 width: "100%",
-                padding: "0.7rem 0.9rem",
+                padding: "0.6rem 0.9rem",
                 borderRadius: "0.6rem",
                 border: "1px solid var(--border-color)",
                 background: "var(--bg-secondary)",
                 color: "var(--text-primary)",
-                fontSize: "0.95rem",
+                fontSize: "0.9rem",
               }}
             >
               <option value="">All Categories</option>
               {Object.entries(CATEGORY_LABELS).map(([value, label]) => (
-                <option key={value} value={value}>{label}</option>
+                <option key={value} value={value}>
+                  {label}
+                </option>
               ))}
             </select>
           </div>
 
           {/* Status */}
           <div>
-            <label style={{ display: "block", fontSize: "0.8rem", fontWeight: 600, color: "var(--text-secondary)", marginBottom: "0.3rem" }}>
+            <label
+              style={{
+                display: "block",
+                fontSize: "0.8rem",
+                fontWeight: 600,
+                color: "var(--text-secondary)",
+                marginBottom: "0.3rem",
+              }}
+            >
               Status
             </label>
             <select
@@ -239,12 +274,12 @@ export default function AllReportsPage() {
               onChange={(e) => handleFilterChange("status", e.target.value)}
               style={{
                 width: "100%",
-                padding: "0.7rem 0.9rem",
+                padding: "0.6rem 0.9rem",
                 borderRadius: "0.6rem",
                 border: "1px solid var(--border-color)",
                 background: "var(--bg-secondary)",
                 color: "var(--text-primary)",
-                fontSize: "0.95rem",
+                fontSize: "0.9rem",
               }}
             >
               <option value="">All Status</option>
@@ -256,8 +291,16 @@ export default function AllReportsPage() {
 
           {/* Date From */}
           <div>
-            <label style={{ display: "block", fontSize: "0.8rem", fontWeight: 600, color: "var(--text-secondary)", marginBottom: "0.3rem" }}>
-              From
+            <label
+              style={{
+                display: "block",
+                fontSize: "0.8rem",
+                fontWeight: 600,
+                color: "var(--text-secondary)",
+                marginBottom: "0.3rem",
+              }}
+            >
+              Date From
             </label>
             <input
               type="date"
@@ -265,20 +308,28 @@ export default function AllReportsPage() {
               onChange={(e) => handleFilterChange("date_from", e.target.value)}
               style={{
                 width: "100%",
-                padding: "0.7rem 0.9rem",
+                padding: "0.6rem 0.9rem",
                 borderRadius: "0.6rem",
                 border: "1px solid var(--border-color)",
                 background: "var(--bg-secondary)",
                 color: "var(--text-primary)",
-                fontSize: "0.95rem",
+                fontSize: "0.9rem",
               }}
             />
           </div>
 
           {/* Date To */}
           <div>
-            <label style={{ display: "block", fontSize: "0.8rem", fontWeight: 600, color: "var(--text-secondary)", marginBottom: "0.3rem" }}>
-              To
+            <label
+              style={{
+                display: "block",
+                fontSize: "0.8rem",
+                fontWeight: 600,
+                color: "var(--text-secondary)",
+                marginBottom: "0.3rem",
+              }}
+            >
+              Date To
             </label>
             <input
               type="date"
@@ -286,19 +337,27 @@ export default function AllReportsPage() {
               onChange={(e) => handleFilterChange("date_to", e.target.value)}
               style={{
                 width: "100%",
-                padding: "0.7rem 0.9rem",
+                padding: "0.6rem 0.9rem",
                 borderRadius: "0.6rem",
                 border: "1px solid var(--border-color)",
                 background: "var(--bg-secondary)",
                 color: "var(--text-primary)",
-                fontSize: "0.95rem",
+                fontSize: "0.9rem",
               }}
             />
           </div>
 
           {/* Search */}
           <div style={{ gridColumn: "span 1" }}>
-            <label style={{ display: "block", fontSize: "0.8rem", fontWeight: 600, color: "var(--text-secondary)", marginBottom: "0.3rem" }}>
+            <label
+              style={{
+                display: "block",
+                fontSize: "0.8rem",
+                fontWeight: 600,
+                color: "var(--text-secondary)",
+                marginBottom: "0.3rem",
+              }}
+            >
               Search
             </label>
             <input
@@ -309,151 +368,229 @@ export default function AllReportsPage() {
               onKeyDown={(e) => e.key === "Enter" && applyFilters()}
               style={{
                 width: "100%",
-                padding: "0.7rem 0.9rem",
+                padding: "0.6rem 0.9rem",
                 borderRadius: "0.6rem",
                 border: "1px solid var(--border-color)",
                 background: "var(--bg-secondary)",
                 color: "var(--text-primary)",
-                fontSize: "0.95rem",
+                fontSize: "0.9rem",
               }}
             />
           </div>
         </div>
 
         {/* Buttons */}
-        <div style={{ display: "flex", gap: "0.8rem", marginTop: "1.2rem", flexWrap: "wrap" }}>
-          <button
-            onClick={applyFilters}
-            style={{
-              padding: "0.7rem 1.8rem",
-              borderRadius: "0.6rem",
-              border: "none",
-              background: "var(--accent)",
-              color: "white",
-              fontWeight: 600,
-              cursor: "pointer",
-              fontSize: "0.95rem",
-              transition: "background 0.3s",
-            }}
-            onMouseEnter={(e) => (e.currentTarget.style.background = "var(--accent-hover)")}
-            onMouseLeave={(e) => (e.currentTarget.style.background = "var(--accent)")}
-          >
+        <div
+          style={{
+            display: "flex",
+            gap: "0.8rem",
+            marginTop: "1.2rem",
+            flexWrap: "wrap",
+          }}
+        >
+          <Button variant="primary" onClick={applyFilters}>
             🔍 Apply Filters
-          </button>
-          <button
-            onClick={clearFilters}
-            style={{
-              padding: "0.7rem 1.8rem",
-              borderRadius: "0.6rem",
-              border: "1px solid var(--border-color)",
-              background: "transparent",
-              color: "var(--text-primary)",
-              cursor: "pointer",
-              fontSize: "0.95rem",
-              transition: "all 0.3s",
-            }}
-            onMouseEnter={(e) => (e.currentTarget.style.background = "var(--btn-secondary)")}
-            onMouseLeave={(e) => (e.currentTarget.style.background = "transparent")}
-          >
+          </Button>
+          <Button variant="outline" onClick={clearFilters}>
             ✕ Clear Filters
-          </button>
-          <span style={{ marginLeft: "auto", fontSize: "0.85rem", color: "var(--text-secondary)", alignSelf: "center" }}>
+          </Button>
+          <span
+            style={{
+              marginLeft: "auto",
+              fontSize: "0.85rem",
+              color: "var(--text-secondary)",
+              alignSelf: "center",
+            }}
+          >
             {reports.length} report{reports.length !== 1 ? "s" : ""} found
           </span>
         </div>
-      </div>
+      </GlassCard>
 
-      {/* ===== RESULTS ===== */}
+      {/* ─── Results ─── */}
       {loading && (
         <div style={{ textAlign: "center", padding: "3rem" }}>
-          <div style={{ width: "40px", height: "40px", border: "4px solid var(--border-color)", borderTopColor: "var(--accent)", borderRadius: "50%", animation: "spin 1s linear infinite", margin: "0 auto" }} />
-          <p style={{ marginTop: "1rem", color: "var(--text-secondary)" }}>Loading reports...</p>
+          <div
+            style={{
+              width: "40px",
+              height: "40px",
+              border: "4px solid var(--border-color)",
+              borderTopColor: "var(--accent)",
+              borderRadius: "50%",
+              animation: "spin 1s linear infinite",
+              margin: "0 auto",
+            }}
+          />
+          <p style={{ marginTop: "1rem", color: "var(--text-secondary)" }}>
+            Loading reports...
+          </p>
         </div>
       )}
 
       {error && (
-        <div style={{ textAlign: "center", padding: "2rem", background: "#fee2e2", borderRadius: "0.8rem", color: "#b71c1c" }}>
+        <div
+          style={{
+            textAlign: "center",
+            padding: "2rem",
+            background: "#fee2e2",
+            borderRadius: "0.8rem",
+            color: "#b71c1c",
+          }}
+        >
           ❌ {error}
         </div>
       )}
 
       {!loading && !error && reports.length === 0 && (
-        <div style={{ textAlign: "center", padding: "3rem", background: "var(--card-bg)", borderRadius: "1rem", border: "1px solid var(--card-border)" }}>
-          <span style={{ fontSize: "3rem", display: "block", marginBottom: "0.5rem" }}>🔍</span>
+        <div
+          style={{
+            textAlign: "center",
+            padding: "3rem",
+            background: "var(--card-bg)",
+            borderRadius: "1rem",
+            border: "1px solid var(--card-border)",
+          }}
+        >
+          <span style={{ fontSize: "3rem", display: "block", marginBottom: "0.5rem" }}>
+            🔍
+          </span>
           <h3 style={{ color: "var(--text-dark)" }}>No reports found</h3>
           <p style={{ color: "var(--text-secondary)" }}>
-            {filters.search || filters.district_id || filters.category || filters.status || filters.date_from || filters.date_to
+            {filters.search ||
+            filters.district_id ||
+            filters.category ||
+            filters.status ||
+            filters.date_from ||
+            filters.date_to
               ? "Try adjusting your filters."
               : "No reports have been submitted yet."}
           </p>
         </div>
       )}
 
+      {/* ─── Threat Cards ─── */}
       <div style={{ display: "flex", flexDirection: "column", gap: "1.2rem" }}>
         {reports.map((report) => (
-          <div
+          <GlassCard
             key={report.id}
-            style={{
-              background: "var(--card-bg)",
-              padding: "1.5rem 1.8rem",
-              borderRadius: "1rem",
-              border: "1px solid var(--card-border)",
-              boxShadow: "var(--card-shadow)",
-              transition: "transform 0.2s, box-shadow 0.2s",
-            }}
-            onMouseEnter={(e) => {
-              e.currentTarget.style.transform = "translateY(-2px)";
-              e.currentTarget.style.boxShadow = "var(--card-shadow-hover)";
-            }}
-            onMouseLeave={(e) => {
-              e.currentTarget.style.transform = "translateY(0)";
-              e.currentTarget.style.boxShadow = "var(--card-shadow)";
-            }}
+            hoverable
+            style={{ padding: "1.5rem 1.8rem" }}
           >
-            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "start", flexWrap: "wrap", gap: "0.5rem" }}>
+            <div
+              style={{
+                display: "flex",
+                justifyContent: "space-between",
+                alignItems: "start",
+                flexWrap: "wrap",
+                gap: "0.5rem",
+              }}
+            >
               <div>
-                <div style={{ display: "flex", alignItems: "center", gap: "0.6rem", flexWrap: "wrap" }}>
-                  <span style={{ fontSize: "1.5rem" }}>{CATEGORY_ICONS[report.category] || "📌"}</span>
-                  <h3 style={{ fontSize: "1.2rem", fontWeight: 600, color: "var(--text-dark)" }}>
+                <div
+                  style={{
+                    display: "flex",
+                    alignItems: "center",
+                    gap: "0.6rem",
+                    flexWrap: "wrap",
+                  }}
+                >
+                  <span style={{ fontSize: "1.5rem" }}>
+                    {CATEGORY_ICONS[report.category] || "📌"}
+                  </span>
+                  <h3
+                    style={{
+                      fontSize: "1.2rem",
+                      fontWeight: 600,
+                      color: "var(--text-dark)",
+                    }}
+                  >
                     {CATEGORY_LABELS[report.category] || report.category}
                   </h3>
+                  <Badge
+                    variant={
+                      report.status === "approved"
+                        ? "success"
+                        : report.status === "pending"
+                        ? "warning"
+                        : "danger"
+                    }
+                    size="sm"
+                  >
+                    {statusLabels[report.status] || report.status}
+                  </Badge>
                 </div>
-                <p style={{ fontSize: "0.95rem", color: "var(--text-secondary)", marginTop: "0.3rem" }}>
-                  📍 {report.district_name_en} <span style={{ color: "var(--text-secondary)", opacity: 0.7 }}>({report.district_name_bn})</span>
+                <p
+                  style={{
+                    fontSize: "0.95rem",
+                    color: "var(--text-secondary)",
+                    marginTop: "0.3rem",
+                  }}
+                >
+                  📍 {report.district_name_en}{" "}
+                  <span
+                    style={{
+                      color: "var(--text-secondary)",
+                      opacity: 0.7,
+                    }}
+                  >
+                    ({report.district_name_bn})
+                  </span>
                 </p>
               </div>
-              <span
-                style={{
-                  padding: "0.3rem 1rem",
-                  borderRadius: "2rem",
-                  fontSize: "0.75rem",
-                  fontWeight: 600,
-                  background: `${statusColors[report.status] || "#95a5a6"}22`,
-                  color: statusColors[report.status] || "#95a5a6",
-                  border: `1px solid ${statusColors[report.status] || "#95a5a6"}44`,
-                  whiteSpace: "nowrap",
-                }}
-              >
-                {report.status.toUpperCase()}
-              </span>
             </div>
 
-            <p style={{ fontSize: "1rem", color: "var(--text-primary)", margin: "0.8rem 0", lineHeight: "1.6" }}>
+            <p
+              style={{
+                fontSize: "1rem",
+                color: "var(--text-primary)",
+                margin: "0.8rem 0",
+                lineHeight: "1.6",
+              }}
+            >
               {report.description}
             </p>
 
-            <small style={{ fontSize: "0.85rem", color: "var(--text-secondary)" }}>
+            <small
+              style={{
+                fontSize: "0.85rem",
+                color: "var(--text-secondary)",
+              }}
+            >
               📅 {formatDate(report.created_at)}
             </small>
-          </div>
+          </GlassCard>
         ))}
       </div>
+
+      {/* ─── Report CTA ─── */}
+      {!loading && reports.length > 0 && (
+        <div
+          style={{
+            marginTop: "3rem",
+            padding: "2rem",
+            background: "var(--bg-secondary)",
+            borderRadius: "1rem",
+            textAlign: "center",
+            border: "1px solid var(--border-color)",
+          }}
+        >
+          <h3 style={{ fontSize: "1.2rem", fontWeight: 600, color: "var(--text-dark)" }}>
+            👀 See something suspicious?
+          </h3>
+          <p style={{ color: "var(--text-secondary)", margin: "0.5rem 0 1rem" }}>
+            Help protect your community by reporting incidents.
+          </p>
+          <a href="/report">
+            <Button variant="primary">🚨 Report Incident</Button>
+          </a>
+        </div>
+      )}
 
       <style>{`
         @keyframes spin {
           to { transform: rotate(360deg); }
         }
       `}</style>
-    </div>
+    </PageContainer>
   );
 }

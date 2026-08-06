@@ -33,22 +33,19 @@ export default function ContactPage() {
 
   const developers = [
     {
-      name: "Tahmid Ezaz",
-      role: "Lead Developer & AI Engineer",
-      email: "tahmid@cybershurokkha.com",
-      phone: "+880 1533-143206",
-      avatar: "👨‍💻",
-    },
-    {
       name: "Sadia Tabassum Nodi",
-      role: "Full Stack Developer",
       email: "nodi@cybershurokkha.com",
       phone: "+880 1794-178002",
       avatar: "👩‍💻",
     },
     {
+      name: "Tahmid Ezaz",
+      email: "tahmid@cybershurokkha.com",
+      phone: "+880 1533-143206",
+      avatar: "👨‍💻",
+    },
+    {
       name: "Md. Ratul Ryhan Rafi",
-      role: "ML & Security Engineer",
       email: "rafi@cybershurokkha.com",
       phone: "+880 1608-434479",
       avatar: "🧑‍💻",
@@ -238,7 +235,6 @@ export default function ContactPage() {
                 <div style={{ fontSize: "2.5rem", flexShrink: 0 }}>{dev.avatar}</div>
                 <div style={{ flex: 1 }}>
                   <div style={{ fontWeight: 600, color: "var(--text-dark)", fontSize: "1.05rem" }}>{dev.name}</div>
-                  <div style={{ color: "var(--text-secondary)", fontSize: "0.85rem", marginBottom: "0.3rem" }}>{dev.role}</div>
                   <div style={{ display: "flex", gap: "1rem", flexWrap: "wrap", fontSize: "0.8rem", color: "var(--text-secondary)" }}>
                     <a href={`mailto:${dev.email}`} style={{ color: "var(--accent)", textDecoration: "none" }}>
                       ✉️ {dev.email}
@@ -259,7 +255,7 @@ export default function ContactPage() {
             </p>
             <div style={{ display: "flex", justifyContent: "center", gap: "1.5rem", marginTop: "0.5rem" }}>
               <a href="tel:+880123456789" style={{ color: "var(--accent)", textDecoration: "none" }}>
-                📞 +880 1234-56789
+                📞 999
               </a>
               <a href="mailto:support@cybershurokkha.com" style={{ color: "var(--accent)", textDecoration: "none" }}>
                 ✉️ support@cybershurokkha.com

@@ -1,0 +1,45 @@
+<svg viewBox="0 0 780 220" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <linearGradient id="shieldGrad" x1="75" y1="60" x2="185" y2="207" gradientUnits="userSpaceOnUse">
+      <stop offset="0%" stop-color="#4A3FF0"/>
+      <stop offset="100%" stop-color="#17C3E6"/>
+    </linearGradient>
+    <linearGradient id="sweepGrad" x1="36.5" y1="76" x2="130" y2="22" gradientUnits="userSpaceOnUse">
+      <stop offset="0%" stop-color="#17C3E6"/>
+      <stop offset="55%" stop-color="#6D5AE6"/>
+      <stop offset="100%" stop-color="#E048B0"/>
+    </linearGradient>
+    <linearGradient id="textGrad" x1="0" y1="0" x2="1" y2="0">
+      <stop offset="0%" stop-color="#4A3FF0"/>
+      <stop offset="100%" stop-color="#17C3E6"/>
+    </linearGradient>
+    <filter id="softGlow" x="-50%" y="-50%" width="200%" height="200%">
+      <feGaussianBlur stdDeviation="3" result="blur"/>
+      <feMerge>
+        <feMergeNode in="blur"/>
+        <feMergeNode in="SourceGraphic"/>
+      </feMerge>
+    </filter>
+  </defs>
+
+  <!-- ===== mark ===== -->
+  <g transform="translate(15,7) scale(0.77)">
+    <circle cx="130" cy="130" r="108" fill="none" stroke="#8C8FBF" stroke-opacity="0.35"
+            stroke-width="2.5" stroke-linecap="round" stroke-dasharray="0.5 9.5"/>
+    <path d="M130,22 A108,108 0 1 1 36.5,76" fill="none" stroke="url(#sweepGrad)"
+          stroke-width="5.5" stroke-linecap="round" filter="url(#softGlow)"/>
+    <circle cx="130" cy="22" r="6.5" fill="#E048B0" filter="url(#softGlow)"/>
+    <path d="M130,60 L185,82 C185,82 185,118 185,136 C185,172 160,195 130,207
+             C100,195 75,172 75,136 C75,118 75,82 75,82 L130,60 Z"
+          fill="url(#shieldGrad)"/>
+    <path d="M130,60 L185,82 C185,82 185,118 185,136 C185,172 160,195 130,207
+             C100,195 75,172 75,136 C75,118 75,82 75,82 L130,60 Z"
+          fill="none" stroke="#F5F7FF" stroke-opacity="0.25" stroke-width="1.5"/>
+    <path d="M103,135 L121,155 L162,104" fill="none" stroke="#F5F7FF"
+          stroke-width="10" stroke-linecap="round" stroke-linejoin="round"/>
+  </g>
+
+  <!-- ===== wordmark ===== -->
+  <text x="245" y="128" font-family="'Noto Sans Bengali','Hind Siliguri','Kalpurush',sans-serif"
+        font-size="58" font-weight="700" fill="url(#textGrad)">সাইবার সুরক্ষা ৩৬০</text>
+</svg>

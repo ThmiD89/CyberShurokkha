@@ -1,8 +1,9 @@
-from fastapi import FastAPI, Depends, HTTPException, File, UploadFile, Response
+from fastapi import FastAPI, Depends, HTTPException, File, UploadFile, Response, Request
 from fastapi.middleware.cors import CORSMiddleware
 from sqlalchemy import text, func
 from sqlalchemy.orm import Session
 
+import random
 import joblib
 import uuid
 import os
@@ -15,7 +16,12 @@ from behavior import behavior_scan
 import shutil
 from fastapi import UploadFile, File, Form
 from fastapi.responses import FileResponse
-
+from slowapi import Limiter, _rate_limit_exceeded_handler
+from slowapi.util import get_remote_address
+from slowapi.errors import RateLimitExceeded
+import requests  # <-- NEW: for reCAPTCHA verification
+import secrets
+from datetime import datetime, timedelta
 
 from database import engine, get_db
 from models import (
@@ -23,7 +29,9 @@ from models import (
     LessonTier, Lesson, QuizQuestion, UserLessonProgress,
     UrlScan, User,
     LogScanSession, LogDetectedEvent, LogAttack, LogSolution,
-    ContactMessage
+    ContactMessage,
+    PasswordResetToken, 
+    EmailVerification,
 )
 from schemas import (
     ScamCheckRequest, ScamCheckResponse,
@@ -45,6 +53,11 @@ from schemas import (
     DailyTrendItem,
     ContactRequest, ContactResponse, ContactMessageItem,
     ReportFormData,
+    ForgotPasswordRequest,
+    ResetPasswordRequest,
+    SendOTPRequest,        
+    VerifyOTPRequest,       
+    VerifyOTPResponse, 
 )
 import smtplib
 from email.mime.text import MIMEText
@@ -61,6 +74,10 @@ from chat_router import router as chat_router
 # ============================================
 app = FastAPI(title="CyberShurokkha 360 API", version="1.0.0")
 
+limiter = Limiter(key_func=get_remote_address)
+app.state.limiter = limiter
+app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
+
 # CORS
 app.add_middleware(
     CORSMiddleware,
@@ -70,7 +87,76 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-app.include_router(chat_router) 
+app.include_router(chat_router)
+
+# ============================================
+# HELPERS
+# ============================================
+
+def verify_recaptcha(token: str) -> bool:
+    """Verify Google reCAPTCHA v2 token."""
+    if not token:
+        return False
+    try:
+        response = requests.post(
+            "https://www.google.com/recaptcha/api/siteverify",
+            data={
+                "secret": os.getenv("RECAPTCHA_SECRET_KEY"),
+                "response": token,
+            },
+        )
+        data = response.json()
+        return data.get("success", False)
+    except Exception:
+        return False
+
+
+def generate_otp() -> str:
+    """Generate a 6-digit OTP."""
+    return f"{random.randint(100000, 999999)}"
+
+def send_otp_email(email: str, otp: str, name: str) -> bool:
+    """Send OTP via email."""
+    try:
+        SMTP_SERVER = os.getenv("SMTP_SERVER", "smtp.gmail.com")
+        SMTP_PORT = int(os.getenv("SMTP_PORT", 587))
+        SMTP_EMAIL = os.getenv("SMTP_EMAIL")
+        SMTP_PASSWORD = os.getenv("SMTP_PASSWORD")
+
+        if not SMTP_EMAIL or not SMTP_PASSWORD:
+            return False
+
+        msg = MIMEMultipart()
+        msg["From"] = SMTP_EMAIL
+        msg["To"] = email
+        msg["Subject"] = "Verify Your Email – CyberShurokkha 360"
+
+        body = f"""
+Hi {name},
+
+Thank you for joining CyberShurokkha 360!
+
+Your verification code is:
+
+🔐 {otp}
+
+This code will expire in 10 minutes.
+
+If you didn't request this, please ignore this email.
+
+Stay safe,
+Team CyberShurokkha 360
+"""
+        msg.attach(MIMEText(body, "plain"))
+
+        with smtplib.SMTP(SMTP_SERVER, SMTP_PORT) as server:
+            server.starttls()
+            server.login(SMTP_EMAIL, SMTP_PASSWORD)
+            server.send_message(msg)
+        return True
+    except Exception as e:
+        print(f"⚠️ Failed to send OTP email: {e}")
+        return False
 
 # ============================================
 # LOAD MODELS
@@ -163,18 +249,25 @@ def get_lang_field(obj, field_base: str, lang: str):
     suffix = "en" if lang == "en" else "bn"
     return getattr(obj, f"{field_base}_{suffix}")
 
+def require_verified(current_user: User = Depends(get_current_user)):
+    if not current_user.email_verified:
+        raise HTTPException(status_code=403, detail="Email not verified. Please verify your email first.")
+    return current_user
 
 # ============================================
 # MODULE 0: AUTH
 # ============================================
 
 @app.post("/auth/signup", response_model=UserResponse)
-def signup(payload: SignupRequest, response: Response, db: Session = Depends(get_db)):
+@limiter.limit("5/hour")
+def signup(request: Request, payload: SignupRequest, response: Response, db: Session = Depends(get_db)):
+    # reCAPTCHA verification
+    if not verify_recaptcha(payload.recaptcha_token):
+        raise HTTPException(status_code=400, detail="reCAPTCHA verification failed. Please try again.")
+
     existing = db.query(User).filter(User.email == payload.email.lower().strip()).first()
     if existing:
         raise HTTPException(status_code=400, detail="An account with this email already exists.")
-    if len(payload.password) < 8:
-        raise HTTPException(status_code=400, detail="Password must be at least 8 characters.")
 
     user = User(
         full_name=payload.full_name.strip(),
@@ -182,21 +275,32 @@ def signup(payload: SignupRequest, response: Response, db: Session = Depends(get
         password_hash=hash_password(payload.password),
         role="citizen",
         preferred_lang="bn",
+        email_verified=False,  # ✅ Default to False
     )
     db.add(user)
     db.commit()
     db.refresh(user)
 
+    # ✅ Log the user in immediately (but they're unverified)
     set_auth_cookie(response, str(user.id))
 
     return UserResponse(
-        id=str(user.id), full_name=user.full_name, email=user.email,
-        role=user.role, preferred_lang=user.preferred_lang,
+        id=str(user.id),
+        full_name=user.full_name,
+        email=user.email,
+        role=user.role,
+        preferred_lang=user.preferred_lang,
+        email_verified=user.email_verified,  # ✅ Include
     )
 
 
 @app.post("/auth/login", response_model=UserResponse)
-def login(payload: LoginRequest, response: Response, db: Session = Depends(get_db)):
+@limiter.limit("10/minute")
+def login(request: Request, payload: LoginRequest, response: Response, db: Session = Depends(get_db)):
+    # reCAPTCHA verification
+    if not verify_recaptcha(payload.recaptcha_token):
+        raise HTTPException(status_code=400, detail="reCAPTCHA verification failed. Please try again.")
+
     user = db.query(User).filter(User.email == payload.email.lower().strip()).first()
     if not user or not verify_password(payload.password, user.password_hash):
         raise HTTPException(status_code=401, detail="Invalid email or password.")
@@ -204,8 +308,12 @@ def login(payload: LoginRequest, response: Response, db: Session = Depends(get_d
     set_auth_cookie(response, str(user.id))
 
     return UserResponse(
-        id=str(user.id), full_name=user.full_name, email=user.email,
-        role=user.role, preferred_lang=user.preferred_lang,
+        id=str(user.id),
+        full_name=user.full_name,
+        email=user.email,
+        role=user.role,
+        preferred_lang=user.preferred_lang,
+        email_verified=user.email_verified,  # ✅ Include
     )
 
 
@@ -218,12 +326,16 @@ def logout(response: Response):
 @app.get("/auth/me", response_model=UserResponse)
 def get_me(current_user: User = Depends(get_current_user)):
     return UserResponse(
-        id=str(current_user.id), full_name=current_user.full_name,
-        email=current_user.email, role=current_user.role,
+        id=str(current_user.id),
+        full_name=current_user.full_name,
+        email=current_user.email,
+        role=current_user.role,
         preferred_lang=current_user.preferred_lang,
+        email_verified=current_user.email_verified,  # ✅ Include
     )
+
 @app.get("/me/activity", response_model=MyActivityResponse)
-def get_my_activity(db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
+def get_my_activity(db: Session = Depends(get_db), current_user: User = Depends(require_verified)):
     scam_scans = (
         db.query(ScamAnalysis)
         .filter(ScamAnalysis.user_id == current_user.id)
@@ -331,6 +443,178 @@ def get_my_activity(db: Session = Depends(get_db), current_user: User = Depends(
     )
 
     return MyActivityResponse(stats=stats, items=items)
+
+
+
+@app.post("/auth/forgot-password")
+def forgot_password(payload: ForgotPasswordRequest, db: Session = Depends(get_db)):
+    user = db.query(User).filter(User.email == payload.email.lower().strip()).first()
+    if not user:
+        return {"message": "If an account with that email exists, a reset link has been sent."}
+
+    # Generate secure token
+    token = secrets.token_urlsafe(32)
+    hashed_token = hash_password(token)
+    reset_link = f"http://localhost:3000/reset-password?token={token}"  # ← Define here
+
+    # Delete any existing unused tokens for this user
+    db.query(PasswordResetToken).filter(
+        PasswordResetToken.user_id == user.id,
+        PasswordResetToken.used == False
+    ).delete()
+
+    # Create new token
+    reset_token = PasswordResetToken(
+        id=uuid.uuid4(),
+        user_id=user.id,
+        token=hashed_token,
+        expires_at=datetime.utcnow() + timedelta(hours=24),
+    )
+    db.add(reset_token)
+    db.commit()
+
+    # ✅ Send email AFTER token is saved
+    try:
+        SMTP_SERVER = os.getenv("SMTP_SERVER", "smtp.gmail.com")
+        SMTP_PORT = int(os.getenv("SMTP_PORT", 587))
+        SMTP_EMAIL = os.getenv("SMTP_EMAIL")
+        SMTP_PASSWORD = os.getenv("SMTP_PASSWORD")
+
+        if SMTP_EMAIL and SMTP_PASSWORD:
+            msg = MIMEMultipart()
+            msg["From"] = SMTP_EMAIL
+            msg["To"] = user.email
+            msg["Subject"] = "Reset Your Password – CyberShurokkha 360"
+
+            body = f"""
+Hi {user.full_name},
+
+We received a request to reset your password for CyberShurokkha 360.
+
+Click the link below to reset your password (valid for 24 hours):
+{reset_link}
+
+If you didn't request this, please ignore this email.
+
+Stay safe,
+Team CyberShurokkha 360
+"""
+            msg.attach(MIMEText(body, "plain"))
+
+            with smtplib.SMTP(SMTP_SERVER, SMTP_PORT) as server:
+                server.starttls()
+                server.login(SMTP_EMAIL, SMTP_PASSWORD)
+                server.send_message(msg)
+            print(f"✅ Reset email sent to {user.email}")
+    except Exception as e:
+        print(f"⚠️ Failed to send reset email: {e}")
+        # Don't delete the token – just log the error and let the user try again
+
+    return {"message": "If an account with that email exists, a reset link has been sent."}
+
+@app.post("/auth/reset-password")
+def reset_password(payload: ResetPasswordRequest, db: Session = Depends(get_db)):
+    # Find token by checking all active tokens
+    tokens = db.query(PasswordResetToken).filter(
+        PasswordResetToken.used == False,
+        PasswordResetToken.expires_at > datetime.utcnow()
+    ).all()
+
+    reset_token = None
+    for t in tokens:
+        if verify_password(payload.token, t.token):
+            reset_token = t
+            break
+
+    if not reset_token:
+        raise HTTPException(400, "Invalid or expired reset token")
+
+    # Update password
+    user = db.query(User).filter(User.id == reset_token.user_id).first()
+    if not user:
+        raise HTTPException(400, "User not found")
+
+    user.password_hash = hash_password(payload.new_password)
+    reset_token.used = True
+    db.commit()
+
+    return {"message": "Password reset successfully"}
+
+
+# ============================================
+# EMAIL OTP VERIFICATION
+# ============================================
+
+@app.post("/auth/send-otp")
+@limiter.limit("3/minute")
+def send_otp(
+    request: Request,
+    payload: SendOTPRequest,
+    db: Session = Depends(get_db),
+):
+    user = db.query(User).filter(User.email == payload.email.lower().strip()).first()
+    if not user:
+        return {"message": "If an account exists, an OTP has been sent."}
+
+    # Invalidate ALL previous OTPs for this user — only the newest one
+    # created below should ever be able to match a verification attempt
+    db.query(EmailVerification).filter(
+        EmailVerification.user_id == user.id
+    ).update({"verified": True})
+    db.commit()
+
+    # Generate and save OTP
+    otp = generate_otp()
+    hashed_otp = hash_password(otp)
+
+    verification = EmailVerification(
+        id=uuid.uuid4(),
+        user_id=user.id,
+        otp=hashed_otp,
+        expires_at=datetime.utcnow() + timedelta(minutes=10),
+    )
+    db.add(verification)
+    db.commit()
+
+    # Send email
+    success = send_otp_email(user.email, otp, user.full_name)
+
+    if not success:
+        db.delete(verification)
+        db.commit()
+        raise HTTPException(500, "Failed to send OTP. Please try again.")
+
+    return {"message": "OTP sent successfully."}
+
+
+@app.post("/auth/verify-otp")
+def verify_otp(
+    payload: VerifyOTPRequest,
+    db: Session = Depends(get_db),
+):
+    user = db.query(User).filter(User.email == payload.email.lower().strip()).first()
+    if not user:
+        return {"verified": False, "message": "User not found."}
+
+    # Find the latest unverified OTP
+    verification = db.query(EmailVerification).filter(
+        EmailVerification.user_id == user.id,
+        EmailVerification.verified == False,
+        EmailVerification.expires_at > datetime.utcnow()
+    ).order_by(EmailVerification.created_at.desc()).first()
+
+    if not verification:
+        return {"verified": False, "message": "No valid OTP found. Please request a new one."}
+
+    # Verify the OTP
+    if verify_password(payload.otp, verification.otp):
+        verification.verified = True
+        # ✅ Mark user as verified
+        user.email_verified = True
+        db.commit()
+        return {"verified": True, "message": "Email verified successfully."}
+    else:
+        return {"verified": False, "message": "Invalid OTP. Please try again."}
 
 # ============================================
 # HEALTH CHECKS
@@ -1230,7 +1514,6 @@ def list_tiers(
 ):
     tiers = db.query(LessonTier).order_by(LessonTier.order_index).all()
     result = []
-    previous_completed = 0  # lessons completed in the tier just before this one
 
     for tier in tiers:
         lessons_in_tier = db.query(Lesson).filter(Lesson.tier_id == tier.id).all()
@@ -1248,27 +1531,17 @@ def list_tiers(
                 .count()
             )
 
-        if tier.order_index == 0:
-            unlocked = True
-        elif not current_user:
-            unlocked = False  # anonymous visitors only ever see Tier 0 unlocked
-        else:
-            unlocked = previous_completed >= tier.unlock_requirement
-
         result.append(TierResponse(
             id=tier.id,
             name_en=tier.name_en,
             name_bn=tier.name_bn,
             order_index=tier.order_index,
-            unlocked=unlocked,
+            unlocked=True,
             lessons_completed=lessons_completed,
             lessons_total=len(lessons_in_tier),
         ))
 
-        previous_completed = lessons_completed
-
     return result
-
 
 @app.get("/learn/lessons", response_model=list[LessonSummary])
 def list_lessons(
@@ -1462,7 +1735,7 @@ async def upload_log(
         raise HTTPException(status_code=500, detail=f"Error scanning log: {str(e)}")
 
 @app.get("/logs/scans", response_model=list[LogScanSummary])
-def list_log_scans(db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
+def list_log_scans(db: Session = Depends(get_db), current_user: User = Depends(require_verified)):
     """A user's own scan history."""
     scans = (
         db.query(LogScanSession)
@@ -1486,7 +1759,7 @@ def list_log_scans(db: Session = Depends(get_db), current_user: User = Depends(g
 def get_log_scan(
     scan_id: str,
     db: Session = Depends(get_db),
-    current_user: User | None = Depends(get_current_user_optional),
+    current_user: User = Depends(require_verified),  # ✅ Changed
 ):
     """Findings for one scan (the dashboard page)."""
     scan = db.query(LogScanSession).filter(LogScanSession.id == scan_id).first()

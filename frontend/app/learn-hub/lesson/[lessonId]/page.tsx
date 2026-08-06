@@ -3,6 +3,12 @@
 import { useEffect, useState } from "react";
 import { useParams, useSearchParams } from "next/navigation";
 import Link from "next/link";
+import PageContainer from "../../../../src/components/common/PageContainer";
+import BackHome from "../../../../src/components/common/BackHome";
+import PageHero from "../../../../src/components/common/PageHero";
+import GlassCard from "../../../../src/components/ui/Card";
+import Button from "../../../../src/components/ui/Button";
+import Spinner from "../../../../src/components/ui/Spinner";
 
 type LessonDetail = {
   id: string;
@@ -38,7 +44,7 @@ export default function LessonPage() {
   const tierId = searchParams.get("tierId") || "1";
 
   const [lang, setLang] = useState<"bn" | "en">(
-    (searchParams.get("lang") as "bn" | "en") || "bn"
+    (searchParams.get("lang") as "bn" | "en") || "en"
   );
   const [lesson, setLesson] = useState<LessonDetail | null>(null);
   const [questions, setQuestions] = useState<QuizQuestion[]>([]);
@@ -53,22 +59,28 @@ export default function LessonPage() {
     setAnswers({});
     Promise.all([
       fetch(`http://localhost:8000/learn/lessons/${lessonId}?lang=${lang}`, {
-        credentials: "include", // 👈 ADD THIS
-      }).then((r) => r.json()),
+        credentials: "include",
+      }).then((r) => {
+        if (!r.ok) throw new Error(`Server returned ${r.status}`);
+        return r.json();
+      }),
       fetch(`http://localhost:8000/learn/lessons/${lessonId}/quiz?lang=${lang}`, {
-        credentials: "include", // 👈 ADD THIS
-      }).then((r) => r.json()),
+        credentials: "include",
+      }).then((r) => {
+        if (!r.ok) throw new Error(`Server returned ${r.status}`);
+        return r.json();
+      }),
     ])
       .then(([lessonData, quizData]) => {
         setLesson(lessonData);
         setQuestions(quizData);
       })
-      .catch(() => setError("Could not reach the backend. Is uvicorn running?"))
+      .catch(() => setError("Could not reach the backend."))
       .finally(() => setLoading(false));
   }, [lessonId, lang]);
 
   function selectAnswer(questionId: string, optionIndex: number) {
-    if (result) return; // lock answers after submitting
+    if (result) return;
     setAnswers((prev) => ({ ...prev, [questionId]: optionIndex }));
   }
 
@@ -77,123 +89,210 @@ export default function LessonPage() {
       const res = await fetch("http://localhost:8000/learn/quiz/submit", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        credentials: "include", // 👈 ADD THIS
+        credentials: "include",
         body: JSON.stringify({ lesson_id: lessonId, answers }),
       });
       if (!res.ok) throw new Error(`Server returned ${res.status}`);
       const data = await res.json();
       setResult(data);
     } catch {
-      setError("Could not submit quiz. Is uvicorn running?");
+      setError("Could not submit quiz.");
     }
   }
 
   const allAnswered = questions.length > 0 && questions.every((q) => answers[q.id] !== undefined);
 
-  return (
-    <section className="hero-section">
-      <div className="container" style={{ maxWidth: "700px", textAlign: "left" }}>
-        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-          <Link href={`/learn-hub/${tierId}?lang=${lang}`} className="nav-link" style={{ fontSize: "0.9rem" }}>
-            ‹ {lang === "bn" ? "পাঠের তালিকা" : "Lesson List"}
-          </Link>
-          <div className="lang-toggle">
-            <button className={`lang-btn ${lang === "bn" ? "active" : ""}`} onClick={() => setLang("bn")}>বাংলা</button>
-            <button className={`lang-btn ${lang === "en" ? "active" : ""}`} onClick={() => setLang("en")}>English</button>
-          </div>
+  if (loading) {
+    return (
+      <PageContainer>
+        <div style={{ textAlign: "center", padding: "3rem" }}>
+          <Spinner size={40} />
+          <p style={{ marginTop: "1rem", color: "var(--text-secondary)" }}>
+            Loading lesson...
+          </p>
         </div>
+      </PageContainer>
+    );
+  }
 
-        {loading && <p>{lang === "bn" ? "লোড হচ্ছে..." : "Loading..."}</p>}
-        {error && <p style={{ color: "#e74c3c" }}>{error}</p>}
+  if (error || !lesson) {
+    return (
+      <PageContainer>
+        <BackHome />
+        <div
+          style={{
+            padding: "1rem 1.5rem",
+            background: "rgba(244, 67, 54, 0.1)",
+            border: "1px solid #dc3545",
+            borderRadius: "0.75rem",
+            color: "#dc3545",
+          }}
+        >
+          ❌ {error || "Lesson not found."}
+        </div>
+      </PageContainer>
+    );
+  }
 
-        {lesson && (
-          <>
-            <h1 className="hero-title" style={{ fontSize: "1.8rem", margin: "1rem 0 0.3rem" }}>
-              {lesson.title}
-            </h1>
-            <p className="progress-label" style={{ marginBottom: "1.5rem" }}>
-              {lesson.estimated_minutes} {lang === "bn" ? "মিনিট" : "min"}
-            </p>
+  return (
+    <PageContainer>
+      <BackHome />
 
-            <div className="card" style={{ marginBottom: "2rem", whiteSpace: "pre-line", lineHeight: 1.7 }}>
-              {lesson.content}
-            </div>
-
-            <h2 className="tier-card-title" style={{ marginBottom: "1rem" }}>
-              {lang === "bn" ? "কুইজ" : "Quiz"}
-            </h2>
-
-            {questions.map((q, qi) => (
-              <div key={q.id} className="card" style={{ marginBottom: "1rem" }}>
-                <p style={{ fontWeight: 600, marginBottom: "0.8rem" }}>
-                  {qi + 1}. {q.question}
-                </p>
-                {q.options.map((opt, oi) => {
-                  const isSelected = answers[q.id] === oi;
-                  let cls = "quiz-option";
-
-                  if (result) {
-                    const qResult = result.results.find((r) => r.question_id === q.id);
-                    if (qResult) {
-                      if (oi === qResult.correct_option_index) {
-                        cls += " correct";
-                      } else if (isSelected && !qResult.is_correct) {
-                        cls += " incorrect";
-                      }
-                    }
-                  } else if (isSelected) {
-                    cls += " selected";
-                  }
-
-                  return (
-                    <button
-                      key={oi}
-                      className={cls}
-                      onClick={() => selectAnswer(q.id, oi)}
-                      disabled={!!result}
-                    >
-                      {opt}
-                    </button>
-                  );
-                })}
-              </div>
-            ))}
-
-            {!result && (
-              <button
-                className="btn-primary"
-                disabled={!allAnswered}
-                onClick={submitQuiz}
-                style={{ opacity: allAnswered ? 1 : 0.5, cursor: allAnswered ? "pointer" : "not-allowed" }}
-              >
-                {lang === "bn" ? "জমা দিন" : "Submit Quiz"}
-              </button>
-            )}
-
-            {result && (
-              <div
-                className="card"
-                style={{
-                  textAlign: "center",
-                  borderColor: result.passed ? "#2ecc71" : "#e74c3c",
-                }}
-              >
-                <p style={{ fontSize: "1.3rem", fontWeight: 700, marginBottom: "0.5rem" }}>
-                  {result.passed ? "🎉" : "😕"} {result.score}/{result.total}
-                </p>
-                <p style={{ marginBottom: "1rem" }}>
-                  {result.passed
-                    ? lang === "bn" ? "পাঠ সম্পন্ন হয়েছে!" : "Lesson completed!"
-                    : lang === "bn" ? "আবার চেষ্টা করুন — ৩/৪ সঠিক দরকার" : "Try again — you need 3/4 correct"}
-                </p>
-                <Link href={`/learn-hub/${tierId}?lang=${lang}`} className="btn-secondary">
-                  {lang === "bn" ? "পাঠের তালিকায় ফিরুন" : "Back to Lesson List"}
-                </Link>
-              </div>
-            )}
-          </>
-        )}
+      <div
+        style={{
+          display: "flex",
+          justifyContent: "flex-end",
+          maxWidth: "700px",
+          margin: "0 auto 1rem",
+        }}
+      >
+        <div className="lang-toggle">
+          <button
+            className={`lang-btn ${lang === "bn" ? "active" : ""}`}
+            onClick={() => setLang("bn")}
+          >
+            বাংলা
+          </button>
+          <button
+            className={`lang-btn ${lang === "en" ? "active" : ""}`}
+            onClick={() => setLang("en")}
+          >
+            English
+          </button>
+        </div>
       </div>
-    </section>
+
+      <PageHero
+        badge="📚 Lesson"
+        icon=""
+        title={lesson.title}
+        subtitle={`${lesson.estimated_minutes} min read`}
+      >
+        <div style={{ display: "flex", gap: "0.5rem", justifyContent: "center", flexWrap: "wrap", marginTop: "1rem" }}>
+          <Link href={`/learn-hub/${tierId}?lang=${lang}`}>
+            <Button variant="secondary" size="sm">
+              ← Back to Lessons
+            </Button>
+          </Link>
+        </div>
+      </PageHero>
+
+      <GlassCard style={{ marginBottom: "1.5rem" }}>
+        <div
+          style={{
+            color: "var(--text-secondary)",
+            lineHeight: "1.8",
+            fontSize: "1rem",
+            whiteSpace: "pre-wrap",
+          }}
+          dangerouslySetInnerHTML={{ __html: lesson.content }}
+        />
+      </GlassCard>
+
+      <h2 style={{ fontSize: "1.3rem", fontWeight: 700, color: "var(--text-dark)", marginBottom: "1rem" }}>
+        📝 Quiz
+      </h2>
+
+      <div style={{ display: "flex", flexDirection: "column", gap: "1.2rem" }}>
+        {questions.map((q, qi) => (
+          <GlassCard key={q.id} style={{ padding: "1.2rem 1.5rem" }}>
+            <p style={{ fontWeight: 600, marginBottom: "0.8rem", color: "var(--text-dark)" }}>
+              {qi + 1}. {q.question}
+            </p>
+            <div style={{ display: "flex", flexDirection: "column", gap: "0.4rem" }}>
+              {q.options.map((opt, oi) => {
+                const isSelected = answers[q.id] === oi;
+                let background = "var(--card-bg)";
+                let borderColor = "var(--border-color)";
+
+                if (result) {
+                  const qResult = result.results.find((r) => r.question_id === q.id);
+                  if (qResult) {
+                    if (oi === qResult.correct_option_index) {
+                      background = "#e8f5e9";
+                      borderColor = "#4caf50";
+                    } else if (isSelected && !qResult.is_correct) {
+                      background = "#fee2e2";
+                      borderColor = "#dc3545";
+                    }
+                  }
+                } else if (isSelected) {
+                  background = "var(--bg-secondary)";
+                  borderColor = "var(--accent)";
+                }
+
+                return (
+                  <button
+                    key={oi}
+                    onClick={() => selectAnswer(q.id, oi)}
+                    disabled={!!result}
+                    style={{
+                      padding: "0.6rem 1rem",
+                      borderRadius: "0.5rem",
+                      border: `2px solid ${borderColor}`,
+                      background: background,
+                      cursor: result ? "default" : "pointer",
+                      textAlign: "left",
+                      color: "var(--text-primary)",
+                      fontSize: "0.95rem",
+                      transition: "all 0.2s",
+                    }}
+                    onMouseEnter={(e) => {
+                      if (!result && !isSelected) {
+                        e.currentTarget.style.borderColor = "var(--accent)";
+                      }
+                    }}
+                    onMouseLeave={(e) => {
+                      if (!result && !isSelected) {
+                        e.currentTarget.style.borderColor = "var(--border-color)";
+                      }
+                    }}
+                  >
+                    {opt}
+                  </button>
+                );
+              })}
+            </div>
+          </GlassCard>
+        ))}
+      </div>
+
+      {!result ? (
+        <Button
+          variant="primary"
+          size="lg"
+          fullWidth
+          style={{ marginTop: "1.5rem" }}
+          onClick={submitQuiz}
+          disabled={!allAnswered}
+        >
+          {!allAnswered ? "Answer all questions first" : "Submit Quiz"}
+        </Button>
+      ) : (
+        <GlassCard
+          style={{
+            textAlign: "center",
+            border: result.passed ? "2px solid #4caf50" : "2px solid #dc3545",
+            marginTop: "1.5rem",
+            padding: "2rem",
+          }}
+        >
+          <span style={{ fontSize: "3rem" }}>{result.passed ? "🎉" : "😅"}</span>
+          <h3 style={{ fontSize: "1.5rem", color: result.passed ? "#1b5e20" : "#b71c1c" }}>
+            {result.score}/{result.total}
+          </h3>
+          <p style={{ color: result.passed ? "#2e7d32" : "#b71c1c" }}>
+            {result.passed
+              ? "✅ Lesson completed! 🎉"
+              : "❌ You need 3/4 correct to pass. Try again!"}
+          </p>
+          <Link href={`/learn-hub/${tierId}?lang=${lang}`}>
+            <Button variant="primary" style={{ marginTop: "1rem" }}>
+              Back to Lessons
+            </Button>
+          </Link>
+        </GlassCard>
+      )}
+    </PageContainer>
   );
 }

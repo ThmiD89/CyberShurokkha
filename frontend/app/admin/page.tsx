@@ -1,13 +1,13 @@
 "use client";
 
 import { useState } from "react";
-import AdminRoute from "../../src/components/AdminRoute";
+import AdminRoute from "../../src/components/guards/AdminRoute";
 import AdminUsersTab from "./AdminUsersTab";
 import AdminReportsTab from "./AdminReportsTab";
 import AdminActivityTab from "./AdminActivityTab";
-import AdminContactTab from "./AdminContactTab"; // <-- NEW
+import AdminContactTab from "./AdminContactTab";
 
-type Tab = "users" | "reports" | "activity" | "contact"; // <-- added "contact"
+type Tab = "users" | "reports" | "activity" | "contact";
 
 function AdminPageContent() {
   const [activeTab, setActiveTab] = useState<Tab>("reports");
@@ -17,7 +17,7 @@ function AdminPageContent() {
     { id: "reports", label: "Pending Reports", icon: "fa-flag" },
     { id: "users", label: "Users", icon: "fa-users" },
     { id: "activity", label: "Activity", icon: "fa-chart-line" },
-    { id: "contact", label: "Contact Messages", icon: "fa-envelope" }, // <-- NEW
+    { id: "contact", label: "Contact Messages", icon: "fa-envelope" },
   ];
 
   const viewUserActivity = (userId: string, userName: string) => {
@@ -74,7 +74,7 @@ function AdminPageContent() {
             onClearUserFilter={() => setActivityUserFilter(null)}
           />
         )}
-        {activeTab === "contact" && <AdminContactTab />} {/* <-- NEW */}
+        {activeTab === "contact" && <AdminContactTab />}
       </div>
     </div>
   );
