@@ -261,7 +261,6 @@ def require_verified(current_user: User = Depends(get_current_user)):
 @app.post("/auth/signup", response_model=UserResponse)
 @limiter.limit("5/hour")
 def signup(request: Request, payload: SignupRequest, response: Response, db: Session = Depends(get_db)):
-    # reCAPTCHA verification
     if not verify_recaptcha(payload.recaptcha_token):
         raise HTTPException(status_code=400, detail="reCAPTCHA verification failed. Please try again.")
 
@@ -269,19 +268,32 @@ def signup(request: Request, payload: SignupRequest, response: Response, db: Ses
     if existing:
         raise HTTPException(status_code=400, detail="An account with this email already exists.")
 
+    # Confirm the district actually exists
+    district = db.query(District).filter(District.id == payload.district_id).first()
+    if not district:
+        raise HTTPException(status_code=400, detail="Invalid district selected.")
+
+    # Confirm the phone number isn't already used by another account
+    existing_phone = db.query(User).filter(User.phone_number == payload.phone_number).first()
+    if existing_phone:
+        raise HTTPException(status_code=400, detail="An account with this phone number already exists.")
+
     user = User(
         full_name=payload.full_name.strip(),
         email=payload.email.lower().strip(),
         password_hash=hash_password(payload.password),
         role="citizen",
         preferred_lang="bn",
-        email_verified=False,  # ✅ Default to False
+        email_verified=False,
+        phone_number=payload.phone_number,
+        district_id=payload.district_id,
+        occupation=payload.occupation.strip(),
+        terms_accepted=payload.terms_accepted,
     )
     db.add(user)
     db.commit()
     db.refresh(user)
 
-    # ✅ Log the user in immediately (but they're unverified)
     set_auth_cookie(response, str(user.id))
 
     return UserResponse(
@@ -290,9 +302,8 @@ def signup(request: Request, payload: SignupRequest, response: Response, db: Ses
         email=user.email,
         role=user.role,
         preferred_lang=user.preferred_lang,
-        email_verified=user.email_verified,  # ✅ Include
+        email_verified=user.email_verified,
     )
-
 
 @app.post("/auth/login", response_model=UserResponse)
 @limiter.limit("10/minute")

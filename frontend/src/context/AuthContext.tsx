@@ -15,7 +15,16 @@ type AuthContextType = {
   user: User | null;
   loading: boolean;
   login: (email: string, password: string, recaptchaToken: string) => Promise<{ ok: boolean; error?: string; user?: User }>;
-  signup: (full_name: string, email: string, password: string, recaptchaToken: string) => Promise<{ ok: boolean; error?: string }>;
+  signup: (
+    full_name: string,
+    email: string,
+    password: string,
+    recaptchaToken: string,
+    phone_number: string,
+    district_id: number,
+    occupation: string,
+    terms_accepted: boolean
+  ) => Promise<{ ok: boolean; error?: string }>;
   logout: () => Promise<void>;
   fetchMe: () => Promise<void>;
 };
@@ -71,19 +80,37 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         return { ok: false, error: formatError(data.detail) };
       }
       setUser(data);
-      return { ok: true, user: data }; // ← Return user data
+      return { ok: true, user: data };
     } catch {
       return { ok: false, error: "Failed to connect to the server." };
     }
   };
 
-  const signup = async (full_name: string, email: string, password: string, recaptchaToken: string) => {
+  const signup = async (
+    full_name: string,
+    email: string,
+    password: string,
+    recaptchaToken: string,
+    phone_number: string,
+    district_id: number,
+    occupation: string,
+    terms_accepted: boolean
+  ) => {
     try {
       const res = await fetch(`${API_BASE_URL}/auth/signup`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         credentials: "include",
-        body: JSON.stringify({ full_name, email, password, recaptcha_token: recaptchaToken }),
+        body: JSON.stringify({
+          full_name,
+          email,
+          password,
+          recaptcha_token: recaptchaToken,
+          phone_number,
+          district_id,
+          occupation,
+          terms_accepted,
+        }),
       });
       const data = await res.json();
       if (!res.ok) {

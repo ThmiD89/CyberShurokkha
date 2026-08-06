@@ -148,6 +148,10 @@ class SignupRequest(BaseModel):
     email: str
     password: str
     recaptcha_token: str
+    phone_number: str
+    district_id: int
+    occupation: str
+    terms_accepted: bool
 
     @field_validator("password")
     @classmethod
@@ -180,6 +184,34 @@ class SignupRequest(BaseModel):
             raise ValueError("Full name must be at least 2 characters.")
         if len(v) > 120:
             raise ValueError("Full name is too long.")
+        if not re.match(r"^[a-zA-Z\u0980-\u09FF .'-]+$", v):
+            raise ValueError("Full name contains invalid characters.")
+        return v
+
+    @field_validator("phone_number")
+    @classmethod
+    def validate_phone_number(cls, v: str) -> str:
+        v = v.strip().replace(" ", "").replace("-", "")
+        # Accept +8801, 8801, or 01, then [3-9] and 8 digits
+        if not re.match(r"^(?:\+8801|8801|01)[3-9]\d{8}$", v):
+            raise ValueError("Enter a valid Bangladeshi phone number (e.g., 01712345678).")
+        return v
+
+    @field_validator("occupation")
+    @classmethod
+    def validate_occupation(cls, v: str) -> str:
+        v = v.strip()
+        if len(v) < 2:
+            raise ValueError("Please select or enter your occupation.")
+        if len(v) > 100:
+            raise ValueError("Occupation is too long.")
+        return v
+
+    @field_validator("terms_accepted")
+    @classmethod
+    def validate_terms_accepted(cls, v: bool) -> bool:
+        if not v:
+            raise ValueError("You must accept the Terms of Service and Privacy Policy to sign up.")
         return v
 
 class LoginRequest(BaseModel):
