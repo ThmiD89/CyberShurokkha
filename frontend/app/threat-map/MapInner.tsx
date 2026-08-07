@@ -23,12 +23,16 @@ type Report = {
   status: string;
 };
 
+// Stable reference — created once at module load, not on every render.
+// Prevents the useEffect below from re-running (and re-fetching) infinitely.
+const DEFAULT_FILTERS = { category: "", status: "" };
+
 interface MapInnerProps {
   filters?: { category: string; status: string };
   showHeatmap?: boolean;
 }
 
-export default function MapInner({ filters = { category: "", status: "" }, showHeatmap = false }: MapInnerProps) {
+export default function MapInner({ filters = DEFAULT_FILTERS, showHeatmap = false }: MapInnerProps) {
   const [data, setData] = useState<DistrictSummary[]>([]);
   const [loading, setLoading] = useState(true);
   const [reportsByDistrict, setReportsByDistrict] = useState<Record<number, Report[]>>({});
