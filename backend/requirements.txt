@@ -28,3 +28,4 @@ tldextract==5.1.2
 validators==0.34.0
 beautifulsoup4==4.12.3
 greenlet==3.1.1
+sendgrid==6.10.0
