@@ -116,48 +116,44 @@ def generate_otp() -> str:
     return f"{random.randint(100000, 999999)}"
 
 def send_otp_email(email: str, otp: str, name: str) -> bool:
-    """Send OTP via Brevo SMTP."""
+    """Send OTP via Brevo's transactional email API (HTTPS, not SMTP)."""
     try:
-        SMTP_SERVER = os.getenv("SMTP_SERVER", "smtp-relay.brevo.com")
-        SMTP_PORT = int(os.getenv("SMTP_PORT", 587))
-        SMTP_EMAIL = os.getenv("SMTP_EMAIL")
-        SMTP_PASSWORD = os.getenv("SMTP_PASSWORD")
-
-        if not SMTP_EMAIL or not SMTP_PASSWORD:
-            print("⚠️ SMTP credentials missing")
+        api_key = os.getenv("BREVO_API_KEY")
+        if not api_key:
+            print("⚠️ BREVO_API_KEY not set")
             return False
 
-        msg = MIMEMultipart()
-        msg["From"] = SMTP_EMAIL
-        msg["To"] = email
-        msg["Subject"] = "Verify Your Email – CyberShurokkha 360"
+        payload = {
+            "sender": {"name": "CyberShurokkha 360", "email": "ezaztahmid@gmail.com"},
+            "to": [{"email": email, "name": name}],
+            "subject": "Verify Your Email – CyberShurokkha 360",
+            "htmlContent": f"""
+                <p>Hi {name},</p>
+                <p>Thank you for joining CyberShurokkha 360!</p>
+                <p>Your verification code is: <strong>{otp}</strong></p>
+                <p>This code will expire in 10 minutes.</p>
+                <p>If you didn't request this, please ignore this email.</p>
+                <p>Stay safe,<br>Team CyberShurokkha 360</p>
+            """,
+        }
 
-        body = f"""
-Hi {name},
+        response = requests.post(
+            "https://api.brevo.com/v3/smtp/email",
+            headers={
+                "accept": "application/json",
+                "api-key": api_key,
+                "content-type": "application/json",
+            },
+            json=payload,
+            timeout=10,
+        )
 
-Thank you for joining CyberShurokkha 360!
-
-Your verification code is:
-
-🔐 {otp}
-
-This code will expire in 10 minutes.
-
-If you didn't request this, please ignore this email.
-
-Stay safe,
-Team CyberShurokkha 360
-"""
-        msg.attach(MIMEText(body, "plain"))
-
-        # Brevo uses STARTTLS on port 587
-        with smtplib.SMTP(SMTP_SERVER, SMTP_PORT) as server:
-            server.starttls()
-            server.login(SMTP_EMAIL, SMTP_PASSWORD)
-            server.send_message(msg)
-        
-        print(f"✅ OTP email sent to {email}")
-        return True
+        if response.status_code in (200, 201):
+            print(f"✅ OTP email sent to {email}")
+            return True
+        else:
+            print(f"⚠️ Brevo API error: {response.status_code} - {response.text}")
+            return False
 
     except Exception as e:
         print(f"⚠️ Failed to send OTP email: {e}")
