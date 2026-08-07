@@ -9,7 +9,7 @@ import GlassCard from "../../src/components/ui/Card";
 import Button from "../../src/components/ui/Button";
 import SectionTitle from "../../src/components/common/SectionTitle";
 
-const API_BASE_URL = "http://localhost:8000";
+const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
 
 export default function QRScanPage() {
   const [activeTab, setActiveTab] = useState<"url" | "upload" | "camera">("url");

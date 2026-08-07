@@ -53,18 +53,20 @@ export default function LessonPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
 
+  const API_BASE = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
+
   useEffect(() => {
     setLoading(true);
     setResult(null);
     setAnswers({});
     Promise.all([
-      fetch(`http://localhost:8000/learn/lessons/${lessonId}?lang=${lang}`, {
+      fetch(`${API_BASE}/learn/lessons/${lessonId}?lang=${lang}`, {
         credentials: "include",
       }).then((r) => {
         if (!r.ok) throw new Error(`Server returned ${r.status}`);
         return r.json();
       }),
-      fetch(`http://localhost:8000/learn/lessons/${lessonId}/quiz?lang=${lang}`, {
+      fetch(`${API_BASE}/learn/lessons/${lessonId}/quiz?lang=${lang}`, {
         credentials: "include",
       }).then((r) => {
         if (!r.ok) throw new Error(`Server returned ${r.status}`);
@@ -86,7 +88,7 @@ export default function LessonPage() {
 
   async function submitQuiz() {
     try {
-      const res = await fetch("http://localhost:8000/learn/quiz/submit", {
+      const res = await fetch(`${API_BASE}/learn/quiz/submit`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         credentials: "include",

@@ -11,10 +11,12 @@ export default function LogScanDashboardPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
 
+  const API_BASE = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
+
   useEffect(() => {
     const fetchScan = async () => {
       try {
-        const res = await fetch(`http://localhost:8000/logs/scans/${scanId}`, {
+        const res = await fetch(`${API_BASE}/logs/scans/${scanId}`, {
           credentials: "include",
         });
         const data = await res.json();
@@ -114,7 +116,7 @@ export default function LogScanDashboardPage() {
               </p>
             ) : (
               scan.findings.map((f: any) => (
-   <a             
+                <a
                   key={f.id}
                   href={`/log-scanner/findings/${f.id}`}
                   style={{ display: "block", padding: "1rem", background: "var(--bg-secondary)", borderRadius: "0.75rem", marginBottom: "0.75rem", textDecoration: "none", border: `1px solid ${severityColor(f.severity)}55` }}

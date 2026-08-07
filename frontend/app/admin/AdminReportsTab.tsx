@@ -51,8 +51,10 @@ export default function AdminReportsTab() {
   const [districtId, setDistrictId] = useState("");
   const [search, setSearch] = useState("");
 
+  const API_BASE = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
+
   useEffect(() => {
-    fetch("http://localhost:8000/threat-map/summary")
+    fetch(`${API_BASE}/threat-map/summary`)
       .then((res) => res.json())
       .then((data) => setDistricts(data))
       .catch(() => {});
@@ -67,7 +69,7 @@ export default function AdminReportsTab() {
       if (districtId) params.append("district_id", districtId);
       if (search) params.append("search", search);
 
-      const res = await fetch(`http://localhost:8000/admin/reports/pending?${params}`, {
+      const res = await fetch(`${API_BASE}/admin/reports/pending?${params}`, {
         credentials: "include",
       });
       const data = await res.json();
@@ -89,7 +91,7 @@ export default function AdminReportsTab() {
 
   const handleModerate = async (reportId: string, action: "approve" | "reject") => {
     try {
-      const res = await fetch(`http://localhost:8000/admin/reports/${reportId}/${action}`, {
+      const res = await fetch(`${API_BASE}/admin/reports/${reportId}/${action}`, {
         method: "POST",
         credentials: "include",
       });
@@ -179,7 +181,7 @@ export default function AdminReportsTab() {
             {r.attachment_path && (
               <div style={{ marginBottom: "0.5rem" }}>
                 <a
-                  href={`http://localhost:8000/reports/${r.id}/attachment`}
+                  href={`${API_BASE}/reports/${r.id}/attachment`}
                   target="_blank"
                   rel="noopener noreferrer"
                   style={{ color: "var(--accent)", textDecoration: "none", fontSize: "0.85rem" }}

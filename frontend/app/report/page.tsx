@@ -29,8 +29,10 @@ export default function ReportPage() {
   const [error, setError] = useState("");
   const fileInputRef = useRef<HTMLInputElement>(null);
 
+  const API_BASE = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
+
   useEffect(() => {
-    fetch("http://localhost:8000/districts")
+    fetch(`${API_BASE}/districts`)
       .then((res) => res.json())
       .then((data) => {
         if (Array.isArray(data)) {
@@ -60,7 +62,7 @@ export default function ReportPage() {
     if (file) form.append("attachment", file);
 
     try {
-      const res = await fetch("http://localhost:8000/reports", {
+      const res = await fetch(`${API_BASE}/reports`, {
         method: "POST",
         body: form,
         credentials: "include",

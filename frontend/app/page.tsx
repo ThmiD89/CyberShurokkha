@@ -38,7 +38,7 @@ export default function Home() {
   const statsRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
-    fetch("http://localhost:8000/platform-stats")
+    fetch(`${process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000"}/platform-stats`)
       .then((res) => res.json())
       .then((data) => setStats(data))
       .catch(() => {});

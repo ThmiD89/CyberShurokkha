@@ -22,6 +22,8 @@ export default function AdminUsersTab({ onViewActivity }: { onViewActivity: (use
   const [deletingId, setDeletingId] = useState<string | null>(null);
   const [confirmId, setConfirmId] = useState<string | null>(null);
 
+  const API_BASE = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
+
   const fetchUsers = async () => {
     setLoading(true);
     setError("");
@@ -30,7 +32,7 @@ export default function AdminUsersTab({ onViewActivity }: { onViewActivity: (use
       if (search) params.append("search", search);
       if (role) params.append("role", role);
 
-      const res = await fetch(`http://localhost:8000/admin/users?${params}`, {
+      const res = await fetch(`${API_BASE}/admin/users?${params}`, {
         credentials: "include",
       });
       const data = await res.json();
@@ -53,7 +55,7 @@ export default function AdminUsersTab({ onViewActivity }: { onViewActivity: (use
   const handleDelete = async (userId: string) => {
     setDeletingId(userId);
     try {
-      const res = await fetch(`http://localhost:8000/admin/users/${userId}`, {
+      const res = await fetch(`${API_BASE}/admin/users/${userId}`, {
         method: "DELETE",
         credentials: "include",
       });

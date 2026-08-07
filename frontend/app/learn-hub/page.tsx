@@ -23,8 +23,10 @@ export default function LearnHubIndexPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
 
+  const API_BASE = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
+
   useEffect(() => {
-    fetch("http://localhost:8000/learn/tiers", { credentials: "include" })
+    fetch(`${API_BASE}/learn/tiers`, { credentials: "include" })
       .then((res) => {
         if (!res.ok) throw new Error(`Server returned ${res.status}`);
         return res.json();

@@ -34,12 +34,14 @@ export default function MapInner({ filters = { category: "", status: "" }, showH
   const [reportsByDistrict, setReportsByDistrict] = useState<Record<number, Report[]>>({});
   const router = useRouter();
 
+  const API_BASE = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
+
   useEffect(() => {
     const params = new URLSearchParams();
     if (filters.category) params.append("category", filters.category);
     if (filters.status) params.append("status", filters.status);
 
-    fetch(`http://localhost:8000/threat-map/summary?${params.toString()}`)
+    fetch(`${API_BASE}/threat-map/summary?${params.toString()}`)
       .then((res) => res.json())
       .then((json: DistrictSummary[]) => {
         setData(json);
@@ -50,7 +52,7 @@ export default function MapInner({ filters = { category: "", status: "" }, showH
         setLoading(false);
       });
 
-    fetch(`http://localhost:8000/reports?${params.toString()}`)
+    fetch(`${API_BASE}/reports?${params.toString()}`)
       .then((res) => res.json())
       .then((reports: (Report & { district_id: number })[]) => {
         const grouped: Record<number, Report[]> = {};

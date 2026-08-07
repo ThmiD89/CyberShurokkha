@@ -22,6 +22,8 @@ export default function ResetPasswordPage() {
   const [error, setError] = useState("");
   const [validToken, setValidToken] = useState<boolean | null>(null);
 
+  const API_BASE = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
+
   useEffect(() => {
     if (!token) {
       setValidToken(false);
@@ -54,7 +56,7 @@ export default function ResetPasswordPage() {
     setLoading(true);
 
     try {
-      const res = await fetch("http://localhost:8000/auth/reset-password", {
+      const res = await fetch(`${API_BASE}/auth/reset-password`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         credentials: "include",

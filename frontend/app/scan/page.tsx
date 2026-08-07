@@ -16,6 +16,8 @@ export default function ScanPage() {
   const [result, setResult] = useState<any>(null);
   const [error, setError] = useState("");
 
+  const API_BASE = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!text.trim()) return;
@@ -25,7 +27,7 @@ export default function ScanPage() {
     setResult(null);
 
     try {
-      const response = await fetch("http://localhost:8000/analyze-scam", {
+      const response = await fetch(`${API_BASE}/analyze-scam`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         credentials: "include",

@@ -75,8 +75,10 @@ export default function AllReportsPage() {
     search: "",
   });
 
+  const API_BASE = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
+
   useEffect(() => {
-    fetch("http://localhost:8000/districts")
+    fetch(`${API_BASE}/districts`)
       .then((res) => res.json())
       .then((data) => setDistricts(data))
       .catch(() => console.error("Failed to fetch districts"));
@@ -94,7 +96,7 @@ export default function AllReportsPage() {
       if (filters.date_to) params.append("date_to", filters.date_to);
       if (filters.search) params.append("search", filters.search);
 
-      const res = await fetch(`http://localhost:8000/reports?${params.toString()}`);
+      const res = await fetch(`${API_BASE}/reports?${params.toString()}`);
       if (!res.ok) throw new Error("Failed to fetch reports");
       const data = await res.json();
       setReports(data);

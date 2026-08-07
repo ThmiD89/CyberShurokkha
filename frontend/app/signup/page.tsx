@@ -262,8 +262,10 @@ export default function SignupPage() {
     occupation: false,
   });
 
+  const API_BASE = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
+
   useEffect(() => {
-    fetch("http://localhost:8000/districts")
+    fetch(`${API_BASE}/districts`)
       .then((res) => res.json())
       .then((data) => {
         if (Array.isArray(data)) setDistricts(data);

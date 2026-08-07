@@ -8,6 +8,8 @@ export default function LogScannerPage() {
   const [result, setResult] = useState<any>(null);
   const [error, setError] = useState("");
 
+  const API_BASE = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
+
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.files && e.target.files[0]) {
       setFile(e.target.files[0]);
@@ -32,7 +34,7 @@ export default function LogScannerPage() {
     formData.append("log_file", file);
 
     try {
-      const res = await fetch("http://localhost:8000/logs/upload", {
+      const res = await fetch(`${API_BASE}/logs/upload`, {
         method: "POST",
         credentials: "include",
         body: formData,

@@ -21,9 +21,11 @@ export default function AdminContactTab() {
   const [selectedMessage, setSelectedMessage] = useState<ContactMessage | null>(null);
   const [modalOpen, setModalOpen] = useState(false);
 
+  const API_BASE = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
+
   const fetchMessages = async () => {
     try {
-      const res = await fetch("http://localhost:8000/admin/contact-messages", {
+      const res = await fetch(`${API_BASE}/admin/contact-messages`, {
         credentials: "include",
       });
       if (!res.ok) throw new Error("Failed to fetch messages");
@@ -59,7 +61,7 @@ export default function AdminContactTab() {
 
   const markAsRead = async (id: string) => {
     try {
-      await fetch(`http://localhost:8000/admin/contact-messages/${id}/read`, {
+      await fetch(`${API_BASE}/admin/contact-messages/${id}/read`, {
         method: "PUT",
         credentials: "include",
       });
@@ -73,7 +75,7 @@ export default function AdminContactTab() {
 
   const markAsReplied = async (id: string) => {
     try {
-      await fetch(`http://localhost:8000/admin/contact-messages/${id}/replied`, {
+      await fetch(`${API_BASE}/admin/contact-messages/${id}/replied`, {
         method: "PUT",
         credentials: "include",
       });

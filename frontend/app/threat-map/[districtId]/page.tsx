@@ -50,8 +50,10 @@ export default function DistrictDetailPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
 
+  const API_BASE = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
+
   useEffect(() => {
-    fetch(`http://localhost:8000/reports?district_id=${districtId}`)
+    fetch(`${API_BASE}/reports?district_id=${districtId}`)
       .then((res) => {
         if (!res.ok) throw new Error("Failed to fetch reports");
         return res.json();

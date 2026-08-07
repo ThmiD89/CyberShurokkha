@@ -12,10 +12,12 @@ export default function LogFindingDetailPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
 
+  const API_BASE = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
+
   useEffect(() => {
     const fetchData = async () => {
       try {
-        const findingRes = await fetch(`http://localhost:8000/logs/events/${eventId}`, {
+        const findingRes = await fetch(`${API_BASE}/logs/events/${eventId}`, {
           credentials: "include",
         });
         const findingData = await findingRes.json();
@@ -28,7 +30,7 @@ export default function LogFindingDetailPage() {
 
         setFinding(findingData);
 
-        const solutionRes = await fetch(`http://localhost:8000/logs/events/${eventId}/solution`, {
+        const solutionRes = await fetch(`${API_BASE}/logs/events/${eventId}/solution`, {
           credentials: "include",
         });
         if (solutionRes.ok) {

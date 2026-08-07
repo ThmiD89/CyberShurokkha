@@ -24,6 +24,7 @@ export default function JobCheckPage() {
   const [loading, setLoading] = useState(false);
   const [result, setResult] = useState<any>(null);
   const [error, setError] = useState("");
+  const API_BASE = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
 
   const handleChange = (
     e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>
@@ -90,7 +91,7 @@ export default function JobCheckPage() {
     setResult(null);
 
     try {
-      const res = await fetch("http://localhost:8000/check-job", {
+      const res = await fetch(`${API_BASE}/check-job`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         credentials: "include",

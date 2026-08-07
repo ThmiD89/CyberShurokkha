@@ -85,8 +85,10 @@ export default function HomepageActivity() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
+  const API_BASE = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
+
   useEffect(() => {
-    fetch("http://localhost:8000/homepage-activity")
+    fetch(`${API_BASE}/homepage-activity`)
       .then((res) => {
         if (!res.ok) throw new Error("Failed to fetch");
         return res.json();

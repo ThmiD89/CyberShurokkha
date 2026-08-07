@@ -42,8 +42,10 @@ export default function TierLessonsPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
 
+  const API_BASE = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
+
   useEffect(() => {
-    fetch("http://localhost:8000/learn/tiers", {
+    fetch(`${API_BASE}/learn/tiers`, {
       credentials: "include",
     })
       .then((res) => res.json())
@@ -58,7 +60,7 @@ export default function TierLessonsPage() {
 
     setLoading(true);
     fetch(
-      `http://localhost:8000/learn/lessons?tier_id=${tierId}&lang=${lang}`,
+      `${API_BASE}/learn/lessons?tier_id=${tierId}&lang=${lang}`,
       {
         credentials: "include",
       }

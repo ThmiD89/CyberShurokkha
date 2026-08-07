@@ -62,7 +62,7 @@ export default function AdminActivityTab({ initialUserFilter, onClearUserFilter 
   // here as a search-assist: selecting one auto-fills the search box with
   // that district's name so report-type activity for that area surfaces.
   useEffect(() => {
-    fetch("http://localhost:8000/threat-map/summary")
+    fetch(`${process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000"}/threat-map/summary`)
       .then((res) => res.json())
       .then((data) => setDistricts(data))
       .catch(() => {});
@@ -78,9 +78,7 @@ export default function AdminActivityTab({ initialUserFilter, onClearUserFilter 
       if (search) params.append("search", search);
       if (initialUserFilter) params.append("user_id", initialUserFilter.id);
 
-      const res = await fetch(`http://localhost:8000/admin/activity?${params}`, {
-        credentials: "include",
-      });
+      const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000"}/admin/activity?${params}`, { credentials: "include" });
       const data = await res.json();
       if (res.ok) {
         setItems(data.items);

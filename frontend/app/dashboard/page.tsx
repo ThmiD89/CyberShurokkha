@@ -85,8 +85,10 @@ function MyProgressContent() {
   const [error, setError] = useState("");
   const [tiersLoading, setTiersLoading] = useState(true);
 
+  const API_BASE = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
+
   useEffect(() => {
-    fetch("http://localhost:8000/me/activity", { credentials: "include" })
+    fetch(`${API_BASE}/me/activity`, { credentials: "include" })
       .then((res) => {
         if (!res.ok) throw new Error(`Server returned ${res.status}`);
         return res.json();
@@ -95,7 +97,7 @@ function MyProgressContent() {
       .catch(() => setError("Could not load your activity. Is the backend running?"))
       .finally(() => setLoading(false));
 
-    fetch("http://localhost:8000/learn/tiers", { credentials: "include" })
+    fetch(`${API_BASE}/learn/tiers`, { credentials: "include" })
       .then((res) => res.json())
       .then((json: Tier[]) => {
         setTiers(json);

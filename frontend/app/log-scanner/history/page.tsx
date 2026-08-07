@@ -7,10 +7,12 @@ export default function LogScanHistoryPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
 
+  const API_BASE = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
+
   useEffect(() => {
     const fetchScans = async () => {
       try {
-        const res = await fetch("http://localhost:8000/logs/scans", {
+        const res = await fetch(`${API_BASE}/logs/scans`, {
           credentials: "include",
         });
         const data = await res.json();
@@ -65,7 +67,7 @@ export default function LogScanHistoryPage() {
         )}
 
         {scans.map((s) => (
-   <a       
+          <a
             key={s.id}
             href={`/log-scanner/${s.id}`}
             style={{ display: "block", background: "var(--card-bg)", border: "1px solid var(--card-border)", borderRadius: "1rem", padding: "1.2rem 1.5rem", marginBottom: "1rem", textDecoration: "none", boxShadow: "var(--card-shadow)" }}

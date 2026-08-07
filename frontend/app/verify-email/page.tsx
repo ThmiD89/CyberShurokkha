@@ -27,6 +27,8 @@ export default function VerifyEmailPage() {
   // which was causing two separate OTP emails to be sent on page load.
   const otpSentRef = useRef(false);
 
+  const API_BASE = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
+
   // Auto-send OTP when page loads — but only once
   useEffect(() => {
     if (email && !otpSentRef.current) {
@@ -46,7 +48,7 @@ export default function VerifyEmailPage() {
     setError("");
 
     try {
-      const res = await fetch("http://localhost:8000/auth/send-otp", {
+      const res = await fetch(`${API_BASE}/auth/send-otp`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         credentials: "include",
@@ -82,7 +84,7 @@ export default function VerifyEmailPage() {
     setError("");
 
     try {
-      const res = await fetch("http://localhost:8000/auth/verify-otp", {
+      const res = await fetch(`${API_BASE}/auth/verify-otp`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         credentials: "include",
