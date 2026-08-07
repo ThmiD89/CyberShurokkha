@@ -116,14 +116,15 @@ def generate_otp() -> str:
     return f"{random.randint(100000, 999999)}"
 
 def send_otp_email(email: str, otp: str, name: str) -> bool:
-    """Send OTP via email using SSL (port 465)."""
+    """Send OTP via Brevo SMTP."""
     try:
-        SMTP_SERVER = os.getenv("SMTP_SERVER", "smtp.gmail.com")
-        SMTP_PORT = int(os.getenv("SMTP_PORT", 465))
+        SMTP_SERVER = os.getenv("SMTP_SERVER", "smtp-relay.brevo.com")
+        SMTP_PORT = int(os.getenv("SMTP_PORT", 587))
         SMTP_EMAIL = os.getenv("SMTP_EMAIL")
         SMTP_PASSWORD = os.getenv("SMTP_PASSWORD")
 
         if not SMTP_EMAIL or not SMTP_PASSWORD:
+            print("⚠️ SMTP credentials missing")
             return False
 
         msg = MIMEMultipart()
@@ -149,11 +150,15 @@ Team CyberShurokkha 360
 """
         msg.attach(MIMEText(body, "plain"))
 
-        # Use SMTP_SSL (port 465) instead of STARTTLS (port 587)
-        with smtplib.SMTP_SSL(SMTP_SERVER, SMTP_PORT) as server:
+        # Brevo uses STARTTLS on port 587
+        with smtplib.SMTP(SMTP_SERVER, SMTP_PORT) as server:
+            server.starttls()
             server.login(SMTP_EMAIL, SMTP_PASSWORD)
             server.send_message(msg)
+        
+        print(f"✅ OTP email sent to {email}")
         return True
+
     except Exception as e:
         print(f"⚠️ Failed to send OTP email: {e}")
         return False
