@@ -81,7 +81,7 @@ app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
 # CORS
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["http://localhost:3000", "https://cyber-shurokkha.vercel.app"],
+    allow_origins=["http://localhost:3000", "https://cyber-shurokkha.onrender.com"],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -116,10 +116,10 @@ def generate_otp() -> str:
     return f"{random.randint(100000, 999999)}"
 
 def send_otp_email(email: str, otp: str, name: str) -> bool:
-    """Send OTP via email."""
+    """Send OTP via email using SSL (port 465)."""
     try:
         SMTP_SERVER = os.getenv("SMTP_SERVER", "smtp.gmail.com")
-        SMTP_PORT = int(os.getenv("SMTP_PORT", 587))
+        SMTP_PORT = int(os.getenv("SMTP_PORT", 465))
         SMTP_EMAIL = os.getenv("SMTP_EMAIL")
         SMTP_PASSWORD = os.getenv("SMTP_PASSWORD")
 
@@ -149,8 +149,8 @@ Team CyberShurokkha 360
 """
         msg.attach(MIMEText(body, "plain"))
 
-        with smtplib.SMTP(SMTP_SERVER, SMTP_PORT) as server:
-            server.starttls()
+        # Use SMTP_SSL (port 465) instead of STARTTLS (port 587)
+        with smtplib.SMTP_SSL(SMTP_SERVER, SMTP_PORT) as server:
             server.login(SMTP_EMAIL, SMTP_PASSWORD)
             server.send_message(msg)
         return True
