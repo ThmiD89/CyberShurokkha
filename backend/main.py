@@ -485,39 +485,41 @@ def forgot_password(payload: ForgotPasswordRequest, db: Session = Depends(get_db
     db.add(reset_token)
     db.commit()
 
-    # ✅ Send email AFTER token is saved
+    # ✅ Send email AFTER token is saved (via Brevo API, not SMTP)
     try:
-        SMTP_SERVER = os.getenv("SMTP_SERVER", "smtp.gmail.com")
-        SMTP_PORT = int(os.getenv("SMTP_PORT", 587))
-        SMTP_EMAIL = os.getenv("SMTP_EMAIL")
-        SMTP_PASSWORD = os.getenv("SMTP_PASSWORD")
+        api_key = os.getenv("BREVO_API_KEY")
+        if not api_key:
+            print("⚠️ BREVO_API_KEY not set")
+        else:
+            payload = {
+                "sender": {"name": "CyberShurokkha 360", "email": "ezaztahmid@gmail.com"},
+                "to": [{"email": user.email, "name": user.full_name}],
+                "subject": "Reset Your Password – CyberShurokkha 360",
+                "htmlContent": f"""
+                    <p>Hi {user.full_name},</p>
+                    <p>We received a request to reset your password for CyberShurokkha 360.</p>
+                    <p>Click the link below to reset your password (valid for 24 hours):</p>
+                    <p><a href="{reset_link}">{reset_link}</a></p>
+                    <p>If you didn't request this, please ignore this email.</p>
+                    <p>Stay safe,<br>Team CyberShurokkha 360</p>
+                """,
+            }
 
-        if SMTP_EMAIL and SMTP_PASSWORD:
-            msg = MIMEMultipart()
-            msg["From"] = SMTP_EMAIL
-            msg["To"] = user.email
-            msg["Subject"] = "Reset Your Password – CyberShurokkha 360"
+            response = requests.post(
+                "https://api.brevo.com/v3/smtp/email",
+                headers={
+                    "accept": "application/json",
+                    "api-key": api_key,
+                    "content-type": "application/json",
+                },
+                json=payload,
+                timeout=10,
+            )
 
-            body = f"""
-Hi {user.full_name},
-
-We received a request to reset your password for CyberShurokkha 360.
-
-Click the link below to reset your password (valid for 24 hours):
-{reset_link}
-
-If you didn't request this, please ignore this email.
-
-Stay safe,
-Team CyberShurokkha 360
-"""
-            msg.attach(MIMEText(body, "plain"))
-
-            with smtplib.SMTP(SMTP_SERVER, SMTP_PORT) as server:
-                server.starttls()
-                server.login(SMTP_EMAIL, SMTP_PASSWORD)
-                server.send_message(msg)
-            print(f"✅ Reset email sent to {user.email}")
+            if response.status_code in (200, 201):
+                print(f"✅ Reset email sent to {user.email}")
+            else:
+                print(f"⚠️ Brevo API error: {response.status_code} - {response.text}")
     except Exception as e:
         print(f"⚠️ Failed to send reset email: {e}")
         # Don't delete the token – just log the error and let the user try again
