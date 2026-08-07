@@ -46,7 +46,7 @@ def set_auth_cookie(response, user_id: str):
         key=COOKIE_NAME,
         value=token,
         httponly=True,
-        samesite="lax",
+        samesite="none",
         secure=True,
         max_age=ACCESS_TOKEN_EXPIRE_MINUTES * 60,
         path="/",
@@ -54,7 +54,12 @@ def set_auth_cookie(response, user_id: str):
 
 
 def clear_auth_cookie(response):
-    response.delete_cookie(COOKIE_NAME, path="/")
+    response.delete_cookie(
+        COOKIE_NAME,
+        path="/",
+        samesite="none",
+        secure=True,
+    )
 
 
 def get_current_user(request: Request, db: Session = Depends(get_db)) -> User:
