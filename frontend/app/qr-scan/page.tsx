@@ -230,7 +230,7 @@ export default function QRScanPage() {
                 style={{
                   fontWeight: "bold",
                   fontSize: "1.2rem",
-                  color: "var(--text-dark)",
+                  color: isSafe ? "#1b5e20" : "#b71c1c",
                   wordBreak: "break-all",
                 }}
               >

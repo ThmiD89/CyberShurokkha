@@ -284,25 +284,25 @@ export default function ScanPage() {
                 <span style={{ fontSize: "2.5rem" }}>
                   {getLevelEmoji(result.risk_level)}
                 </span>
-                <div style={{ flex: 1 }}>
-                  <div
-                    style={{
-                      display: "flex",
-                      alignItems: "center",
-                      gap: "0.8rem",
-                      flexWrap: "wrap",
-                    }}
-                  >
-                    <p
+                  <div style={{ flex: 1 }}>
+                    <div
                       style={{
-                        fontWeight: "bold",
-                        fontSize: "1.2rem",
-                        color: "var(--text-dark)",
-                        margin: 0,
+                        display: "flex",
+                        alignItems: "center",
+                        gap: "0.8rem",
+                        flexWrap: "wrap",
                       }}
                     >
-                      Risk Score: {result.risk_score}/100
-                    </p>
+                      <p
+                        style={{
+                          fontWeight: "bold",
+                          fontSize: "1.2rem",
+                          color: getLevelColor(result.risk_level).text,
+                          margin: 0,
+                        }}
+                      >
+                        Risk Score: {result.risk_score}/100
+                      </p>
                     <Badge
                       variant={getLevelColor(result.risk_level).badge as "success" | "warning" | "danger"}
                     >
