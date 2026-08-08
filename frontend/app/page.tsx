@@ -80,7 +80,7 @@ export default function Home() {
         <div className="hero-container" style={{ position: "relative", zIndex: 2 }}>
           <div className="hero-badge">
             <span className="badge-icon">🔒</span>
-            <span>AI-Powered Security Analysis</span>
+            <span>ML-Based Security Analysis</span>
           </div>
           <h1 className="hero-title">
             Detect Scams Instantly,<br />
