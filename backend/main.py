@@ -467,7 +467,8 @@ def forgot_password(payload: ForgotPasswordRequest, db: Session = Depends(get_db
     # Generate secure token
     token = secrets.token_urlsafe(32)
     hashed_token = hash_password(token)
-    reset_link = f"http://localhost:3000/reset-password?token={token}"  # ← Define here
+    FRONTEND_URL = os.getenv("FRONTEND_URL", "http://localhost:3000")
+    reset_link = f"{FRONTEND_URL}/reset-password?token={token}"
 
     # Delete any existing unused tokens for this user
     db.query(PasswordResetToken).filter(
